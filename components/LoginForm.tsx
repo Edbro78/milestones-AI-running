@@ -2,10 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 
 export function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -16,20 +14,44 @@ export function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
-    const supabase = createClient();
 
     try {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!url || !key) {
+        throw new Error(
+          "Supabase er ikke konfigurert i Vercel (NEXT_PUBLIC_SUPABASE_URL / ANON_KEY).",
+        );
+      }
+
+      const supabase = createClient();
+
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        router.push("/dashboard");
-        router.refresh();
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setMessage("Konto opprettet. Du kan logge inn med en gang hvis e-postbekreftelse er av.");
-        setMode("login");
+        if (error) {
+          if (error.message.toLowerCase().includes("invalid login")) {
+            throw new Error(
+              "Feil e-post/passord, eller konto finnes ikke. Prøv «Opprett konto» først.",
+            );
+          }
+          throw error;
+        }
+        window.location.href = "/dashboard";
+        return;
       }
+
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+
+      if (data.session) {
+        window.location.href = "/dashboard";
+        return;
+      }
+
+      setMessage(
+        "Konto opprettet. Hvis e-postbekreftelse er på i Supabase, sjekk innboksen. Ellers kan du logge inn nå.",
+      );
+      setMode("login");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Innlogging feilet");
     } finally {
@@ -88,7 +110,10 @@ export function LoginForm() {
       <button
         type="button"
         className="mt-4 w-full text-sm text-[var(--ink-muted)] underline"
-        onClick={() => setMode(mode === "login" ? "signup" : "login")}
+        onClick={() => {
+          setMode(mode === "login" ? "signup" : "login");
+          setMessage(null);
+        }}
       >
         {mode === "login" ? "Ny her? Opprett konto" : "Har konto? Logg inn"}
       </button>
