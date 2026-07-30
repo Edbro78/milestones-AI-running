@@ -106,3 +106,55 @@ a {
   color: var(--ink-muted);
   margin-bottom: 0.35rem;
 }
+
+/* Startside */
+.home-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.home-horizon {
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(8, 24, 18, 0.55) 100%),
+    repeating-linear-gradient(
+      -12deg,
+      transparent 0 18px,
+      rgba(196, 240, 77, 0.04) 18px 19px
+    );
+}
+
+@keyframes home-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes home-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-fade-in {
+  animation: home-fade-in 0.8s ease both;
+}
+
+.home-rise {
+  animation: home-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.home-rise-delay {
+  animation: home-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+.home-rise-delay-2 {
+  animation: home-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}

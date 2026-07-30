@@ -1,6 +1,6 @@
 import { zoneGuidanceText } from "@/lib/zones";
 
-export const CLAUDE_MODEL = "claude-sonnet-4-6";
+export const GEMINI_MODEL = "gemini-2.5-flash";
 
 export function buildSystemPrompt(maxHr?: number | null): string {
   return `Du er en erfaren løpetrener som bruker Marius Bakkens trafikklys- og sonesystem for å gi konkrete, daglige treningsråd for løping.

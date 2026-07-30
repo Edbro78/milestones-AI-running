@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="nb">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Milestones AI Running</title>
+    <meta
+      name="description"
+      content="Personlig løpetrener med Garmin Connect og Google Gemini"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --brand: #0f3d2e;
+        --accent: #c4f04d;
+        --ink: #f4ffe8;
+        --muted: #d7e8db;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        font-family: "Outfit", system-ui, sans-serif;
+        color: var(--ink);
+        background: #0a1f17;
+      }
+
+      .shell {
+        position: relative;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      .bg {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(
+            165deg,
+            rgba(15, 61, 46, 0.95) 0%,
+            rgba(20, 48, 36, 0.82) 42%,
+            rgba(196, 240, 77, 0.22) 100%
+          ),
+          radial-gradient(
+            ellipse 80% 60% at 70% 40%,
+            rgba(196, 240, 77, 0.18),
+            transparent 55%
+          );
+      }
+
+      .horizon {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 42vh;
+        background:
+          linear-gradient(180deg, transparent 0%, rgba(8, 24, 18, 0.55) 100%),
+          repeating-linear-gradient(
+            -12deg,
+            transparent 0 18px,
+            rgba(196, 240, 77, 0.04) 18px 19px
+          );
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+        max-width: 72rem;
+        margin: 0 auto;
+        min-height: 100vh;
+        padding: 2rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        animation: fade-in 0.8s ease both;
+      }
+
+      .brand {
+        font-family: "Fraunces", Georgia, serif;
+        font-size: clamp(1.5rem, 3vw, 1.9rem);
+        letter-spacing: -0.03em;
+        margin: 0;
+      }
+
+      .brand span {
+        margin-left: 0.5rem;
+        font-family: "Outfit", system-ui, sans-serif;
+        font-size: 0.75rem;
+        font-weight: 400;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .nav-link {
+        color: var(--ink);
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        transition: border-color 0.15s ease, color 0.15s ease;
+      }
+
+      .nav-link:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 5rem 0 4rem;
+        max-width: 36rem;
+      }
+
+      h1 {
+        font-family: "Fraunces", Georgia, serif;
+        font-size: clamp(3rem, 9vw, 4.5rem);
+        line-height: 0.95;
+        letter-spacing: -0.03em;
+        margin: 0;
+        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+
+      .lead {
+        margin: 1.5rem 0 0;
+        font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+        color: var(--muted);
+        max-width: 28rem;
+        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 2.5rem;
+        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: var(--brand);
+      }
+
+      .btn-primary:hover {
+        background: #d6f76a;
+      }
+
+      .btn-ghost {
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: var(--ink);
+      }
+
+      .btn-ghost:hover {
+        border-color: var(--accent);
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="bg" aria-hidden="true"></div>
+      <div class="horizon" aria-hidden="true"></div>
+
+      <div class="content">
+        <header>
+          <p class="brand">Milestones<span>AI Running</span></p>
+          <a class="nav-link" href="https://milestones-ai-running.vercel.app/login">Logg inn</a>
+        </header>
+
+        <main>
+          <h1>Milestones<br /><em>AI Running</em></h1>
+          <p class="lead">
+            Daglige treningsråd fra Garmin og Gemini — tilpasset målene dine.
+          </p>
+          <div class="actions">
+            <a class="btn btn-primary" href="https://milestones-ai-running.vercel.app/login">Kom i gang</a>
+            <a class="btn btn-ghost" href="https://milestones-ai-running.vercel.app/login">Logg inn</a>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

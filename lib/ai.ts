@@ -1,20 +1,20 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import {
   BASELINE_ESTIMATE_SCHEMA,
   CALIBRATE_SCHEMA,
-  CLAUDE_MODEL,
   DAILY_RECOMMENDATION_SCHEMA,
+  GEMINI_MODEL,
   buildSystemPrompt,
 } from "@/lib/prompts";
 import type { DailyRecommendation } from "@/lib/types";
 
 function getClient() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
-  return new Anthropic({ apiKey });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Missing GEMINI_API_KEY");
+  return new GoogleGenAI({ apiKey });
 }
 
-export function parseClaudeJson<T>(text: string): T {
+export function parseAiJson<T>(text: string): T {
   const trimmed = text.trim();
   const withoutFences = trimmed
     .replace(/^```(?:json)?\s*/i, "")
@@ -24,19 +24,23 @@ export function parseClaudeJson<T>(text: string): T {
 }
 
 async function completeJson(system: string, user: string): Promise<string> {
-  const client = getClient();
-  const message = await client.messages.create({
-    model: CLAUDE_MODEL,
-    max_tokens: 1024,
-    system,
-    messages: [{ role: "user", content: user }],
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: user,
+    config: {
+      systemInstruction: system,
+      temperature: 0.4,
+      maxOutputTokens: 1024,
+      responseMimeType: "application/json",
+    },
   });
 
-  const block = message.content.find((c) => c.type === "text");
-  if (!block || block.type !== "text") {
-    throw new Error("Claude returned no text content");
+  const text = response.text;
+  if (!text) {
+    throw new Error("Gemini returned no text content");
   }
-  return block.text;
+  return text;
 }
 
 export async function askDailyRecommendation(input: {
@@ -60,7 +64,7 @@ Kontekst:
 - Historikk (7–14 dager, oppsummert): ${input.historySummary}`;
 
   const text = await completeJson(system, user);
-  return parseClaudeJson<DailyRecommendation>(text);
+  return parseAiJson<DailyRecommendation>(text);
 }
 
 export async function askBaselineEstimate(input: {
@@ -85,7 +89,7 @@ Ukestruktur: ${input.weeklyStructure || "(ikke satt)"}
 Garmin-aktiviteter siste ~90 dager (oppsummert): ${input.activitiesSummary}`;
 
   const text = await completeJson(system, user);
-  return parseClaudeJson(text);
+  return parseAiJson(text);
 }
 
 export async function askCalibrate(input: {
@@ -107,5 +111,5 @@ Ukestruktur: ${input.weeklyStructure || "(ikke satt)"}
 Trening siden forrige testløp: ${input.trainingSinceLast}`;
 
   const text = await completeJson(system, user);
-  return parseClaudeJson(text);
+  return parseAiJson(text);
 }

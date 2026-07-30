@@ -51,7 +51,7 @@ export function SettingsForm({
     <form onSubmit={onSubmit} className="panel rounded-2xl p-6">
       <h2 className="font-display text-2xl">Ukestruktur & maxpuls</h2>
       <p className="mt-2 text-sm text-[var(--ink-muted)]">
-        Ukestrukturen sendes med i alle Claude-anbefalinger.
+        Ukestrukturen sendes med i alle Gemini-anbefalinger.
       </p>
       <div className="mt-5">
         <label className="label">Ukestruktur</label>

@@ -1,12 +1,12 @@
 # Milestones AI Running
 
-Personlig treningsassistent for løping. Kombinerer Garmin Connect-data med Claude AI for daglige, konkrete treningsråd basert på dine målsetninger.
+Personlig treningsassistent for løping. Kombinerer Garmin Connect-data med Google Gemini for daglige, konkrete treningsråd basert på dine målsetninger.
 
 ## Stack
 
 - Next.js (App Router, TypeScript) + Tailwind CSS
 - Supabase (Auth, Postgres, RLS)
-- Anthropic Claude (`claude-sonnet-4-6`)
+- Google Gemini (`gemini-2.5-flash` via `@google/genai`)
 - Garmin Connect (server-side via `GARMIN_EMAIL` / `GARMIN_PASSWORD`)
 - recharts for målfremdrift
 - Deploy: Vercel
@@ -37,7 +37,7 @@ I `.env.local` og Vercel → Project Settings → Environment Variables:
 | `NEXT_PUBLIC_SUPABASE_URL` | klient + server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | klient + server |
 | `SUPABASE_SERVICE_ROLE_KEY` | **kun server** (Garmin token-cache) |
-| `ANTHROPIC_API_KEY` | **kun server** |
+| `GEMINI_API_KEY` | **kun server** (Google AI Studio) |
 | `GARMIN_EMAIL` | **kun server** |
 | `GARMIN_PASSWORD` | **kun server** |
 
@@ -58,8 +58,8 @@ Vercel-prosjekt: `milestones-ai-running` (koblet til GitHub). Push til `main` de
 
 ## Sider
 
-- `/dashboard` – trafikklys, daglig Claude-anbefaling, grafer
-- `/milestones` – aktive mål (maks 3) + baseline via Claude/Garmin
+- `/dashboard` – trafikklys, daglig Gemini-anbefaling, grafer
+- `/milestones` – aktive mål (maks 3) + baseline via Gemini/Garmin
 - `/test-runs` – registrer testløp + kalibrering
 - `/settings` – ukestruktur og maxpuls
 

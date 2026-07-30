@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { askBaselineEstimate } from "@/lib/claude";
+import { askBaselineEstimate } from "@/lib/ai";
 import { fetchRecentActivities, summarizeActivities } from "@/lib/garmin/client";
 import { maxTargetDate, todayISO } from "@/lib/time";
 
@@ -79,10 +79,10 @@ export async function POST(request: Request) {
       baseline_estimate = result.baseline_estimate;
       begrunnelse = result.begrunnelse;
     } catch (err) {
-      console.error("[baseline-estimate] Claude failed", err);
+      console.error("[baseline-estimate] Gemini failed", err);
       baseline_estimate = target_value;
       begrunnelse =
-        "Claude-baseline feilet – brukte target_value midlertidig. Du kan kalibrere med testløp.";
+        "Gemini-baseline feilet – brukte target_value midlertidig. Du kan kalibrere med testløp.";
     }
 
     const { data: milestone, error } = await supabase

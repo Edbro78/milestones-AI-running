@@ -16,7 +16,7 @@ const body = Outfit({
 
 export const metadata: Metadata = {
   title: "Milestones AI Running",
-  description: "Personlig løpetrener med Garmin Connect og Claude AI",
+  description: "Personlig løpetrener med Garmin Connect og Google Gemini",
 };
 
 export default function RootLayout({

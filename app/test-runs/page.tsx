@@ -42,7 +42,7 @@ export default async function TestRunsPage() {
         <section>
           <h1 className="font-display text-4xl md:text-5xl">Testløp</h1>
           <p className="mt-2 text-[var(--ink-muted)]">
-            Kalibrerer Claudes estimat mot faktisk resultat.
+            Kalibrerer Gemini-estimat mot faktisk resultat.
           </p>
         </section>
 

@@ -110,7 +110,7 @@ export function TestRunForm({ milestones }: { milestones: Milestone[] }) {
         {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
         {info ? <p className="mt-3 text-sm text-[var(--ink-muted)]">{info}</p> : null}
         <button className="btn btn-primary mt-5" disabled={loading}>
-          {loading ? "Kalibrerer med Claude…" : "Lagre og kalibrer"}
+          {loading ? "Kalibrerer med Gemini…" : "Lagre og kalibrer"}
         </button>
       </form>
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { askDailyRecommendation, parseClaudeJson } from "@/lib/claude";
+import { askDailyRecommendation } from "@/lib/ai";
 import { fetchDailySnapshot } from "@/lib/garmin/client";
 import { computeTrafficLight } from "@/lib/traffic-light";
 import { todayISO } from "@/lib/time";
@@ -79,18 +79,16 @@ export async function POST() {
         historySummary,
       });
     } catch (err) {
-      console.error("[daily-recommendation] Claude/parse failed", err);
+      console.error("[daily-recommendation] Gemini/parse failed", err);
       recommendation = {
         trafikklys: traffic.trafikklys,
         begrunnelse: traffic.begrunnelse,
         okt_type: traffic.trafikklys === "rødt" ? "hvile" : "rolig",
         anbefalt_varighet_min: traffic.trafikklys === "rødt" ? 0 : 45,
-        anbefalt_intensitet: "Se sonesystem – Claude-svar kunne ikke parses",
+        anbefalt_intensitet: "Se sonesystem – Gemini-svar kunne ikke parses",
         kommentar:
           "Kunne ikke hente AI-anbefaling akkurat nå. Bruk trafikklyset og ukestrukturen som veiledning.",
       };
-      // Keep parseClaudeJson available for typing path
-      void parseClaudeJson;
     }
 
     const payload = {

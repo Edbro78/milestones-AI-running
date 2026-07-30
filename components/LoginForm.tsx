@@ -44,7 +44,7 @@ export function LoginForm() {
         AI Running
       </p>
       <p className="mt-4 text-[var(--ink-muted)]">
-        Personlig løpetrener med Garmin + Claude.
+        Personlig løpetrener med Garmin + Gemini.
       </p>
 
       <div className="mt-8 space-y-4">

@@ -39,7 +39,7 @@ export default async function DashboardPage() {
         <section>
           <h1 className="font-display text-4xl md:text-5xl">Dagens økt</h1>
           <p className="mt-2 max-w-2xl text-[var(--ink-muted)]">
-            Trafikklys fra Garmin, konkrete råd fra Claude – tilpasset ukestrukturen din.
+            Trafikklys fra Garmin, konkrete råd fra Gemini – tilpasset ukestrukturen din.
           </p>
         </section>
 

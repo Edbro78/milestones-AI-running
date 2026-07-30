@@ -38,7 +38,7 @@ export function DailyRecommendationPanel() {
   if (loading) {
     return (
       <div className="panel rounded-2xl p-6 animate-pulse">
-        <p className="text-[var(--ink-muted)]">Henter Garmin + Claude-anbefaling…</p>
+        <p className="text-[var(--ink-muted)]">Henter Garmin + Gemini-anbefaling…</p>
       </div>
     );
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { askCalibrate } from "@/lib/claude";
+import { askCalibrate } from "@/lib/ai";
 import { fetchRecentActivities, summarizeActivities } from "@/lib/garmin/client";
 import { daysBetween, todayISO } from "@/lib/time";
 
@@ -84,9 +84,9 @@ export async function POST(request: Request) {
       claude_estimate_after = result.claude_estimate_after;
       begrunnelse = result.begrunnelse;
     } catch (err) {
-      console.error("[calibrate] Claude failed", err);
+      console.error("[calibrate] Gemini failed", err);
       begrunnelse =
-        "Claude-kalibrering feilet. Estimatet er uendret; testløpet er lagret.";
+        "Gemini-kalibrering feilet. Estimatet er uendret; testløpet er lagret.";
     }
 
     const { data: testRun, error } = await supabase
