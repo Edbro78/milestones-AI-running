@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { CreateMilestoneForm } from "@/components/CreateMilestoneForm";
 import { MilestoneCard } from "@/components/MilestoneCard";
+import { getSelectedAthlete } from "@/lib/athlete-session";
 import { createClient } from "@/lib/supabase/server";
 import { daysBetween, todayISO } from "@/lib/time";
 import type { Milestone, TestRun } from "@/lib/types";
@@ -12,6 +13,9 @@ export default async function MilestonesPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const athlete = await getSelectedAthlete();
+  if (!athlete) redirect("/velg");
 
   const { data: milestones } = await supabase
     .from("milestones")
@@ -38,7 +42,7 @@ export default async function MilestonesPage() {
 
   return (
     <div>
-      <AppNav email={user.email} />
+      <AppNav email={user.email} athlete={athlete} />
       <main className="mx-auto w-full max-w-6xl space-y-8 px-4 pb-16">
         <section>
           <h1 className="font-display text-4xl md:text-5xl">Mine mål</h1>

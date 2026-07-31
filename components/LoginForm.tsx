@@ -36,7 +36,7 @@ export function LoginForm() {
           }
           throw error;
         }
-        window.location.href = "/dashboard";
+        window.location.href = "/velg";
         return;
       }
 
@@ -44,7 +44,7 @@ export function LoginForm() {
       if (error) throw error;
 
       if (data.session) {
-        window.location.href = "/dashboard";
+        window.location.href = "/velg";
         return;
       }
 

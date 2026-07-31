@@ -158,3 +158,172 @@ a {
 .home-rise-delay-2 {
   animation: home-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
 }
+
+/* Utøvervalg */
+.athlete-picker-page {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem 1.25rem 5rem;
+  overflow: hidden;
+}
+
+.athlete-picker-page__glow {
+  pointer-events: none;
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 70%;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(196, 240, 77, 0.35), transparent 55%),
+    radial-gradient(ellipse at 80% 10%, rgba(15, 61, 46, 0.22), transparent 50%);
+}
+
+.athlete-picker-page__grain {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.45;
+}
+
+.athlete-picker-page__signout {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 2;
+}
+
+.athlete-picker {
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 56rem;
+}
+
+.athlete-picker__brand {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.athlete-picker__grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .athlete-picker__grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.athlete-tile {
+  position: relative;
+  display: flex;
+  min-height: 15rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.75rem;
+  border: 1px solid rgba(20, 32, 26, 0.14);
+  border-radius: 1.75rem;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    border-color 0.2s ease;
+  animation: home-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.athlete-tile:hover:not(:disabled) {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 28px 60px rgba(15, 61, 46, 0.16);
+  border-color: rgba(15, 61, 46, 0.28);
+}
+
+.athlete-tile:disabled {
+  cursor: wait;
+  opacity: 0.85;
+}
+
+.athlete-tile--edvard {
+  background: linear-gradient(
+    160deg,
+    rgba(196, 240, 77, 0.42) 0%,
+    rgba(255, 255, 255, 0.62) 45%,
+    rgba(223, 234, 223, 0.95) 100%
+  );
+}
+
+.athlete-tile--bernt {
+  background:
+    linear-gradient(160deg, rgba(15, 61, 46, 0.88) 0%, rgba(35, 72, 58, 0.92) 55%, rgba(20, 40, 32, 0.96) 100%);
+  color: #eef6ea;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.athlete-tile--bernt .athlete-tile__blurb,
+.athlete-tile--bernt .athlete-tile__cta {
+  color: rgba(238, 246, 234, 0.72);
+}
+
+.athlete-tile__mark {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 5.5rem;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  opacity: 0.12;
+  pointer-events: none;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.athlete-tile:hover .athlete-tile__mark {
+  transform: translateY(-4px) scale(1.04);
+  opacity: 0.18;
+}
+
+.athlete-tile__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.athlete-tile__name {
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.athlete-tile__blurb {
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+}
+
+.athlete-tile__cta {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.athlete-tile__badge {
+  margin-top: 0.55rem;
+  display: inline-flex;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(238, 246, 234, 0.9);
+}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { SettingsForm } from "@/components/SettingsForm";
+import { getSelectedAthlete } from "@/lib/athlete-session";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function SettingsPage() {
@@ -10,6 +11,9 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const athlete = await getSelectedAthlete();
+  if (!athlete) redirect("/velg");
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("weekly_structure, max_hr")
@@ -18,7 +22,7 @@ export default async function SettingsPage() {
 
   return (
     <div>
-      <AppNav email={user.email} />
+      <AppNav email={user.email} athlete={athlete} />
       <main className="mx-auto w-full max-w-6xl space-y-8 px-4 pb-16">
         <section>
           <h1 className="font-display text-4xl md:text-5xl">Innstillinger</h1>
