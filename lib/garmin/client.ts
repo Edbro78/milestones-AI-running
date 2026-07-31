@@ -213,19 +213,16 @@ export async function fetchDailySnapshot(date = todayISO()): Promise<GarminSnaps
       console.warn("[garmin] HRV fetch failed", err);
     }
 
-    // Body Battery – custom range endpoint
+    // Body Battery – query-param range endpoint
     try {
-      const start = formatDate(daysAgo(1));
       const bb = await client.get<unknown[]>(
-        `https://connectapi.garmin.com/wellness-service/wellness/bodyBattery/reports/daily/${start}/${date}`,
+        "https://connectapi.garmin.com/wellness-service/wellness/bodyBattery/reports/daily",
+        { params: { startDate: date, endDate: date } },
       );
       raw.bodyBattery = bb;
-      const last = Array.isArray(bb) ? bb[bb.length - 1] : null;
-      const values = (last as { bodyBatteryValuesArray?: [number, number, number?][] })
-        ?.bodyBatteryValuesArray;
-      if (values?.length) {
-        body_battery = values[values.length - 1]?.[1] ?? null;
-      }
+      body_battery = extractBodyBatteryLevel(
+        Array.isArray(bb) ? bb.find((row) => rowDate(row) === date) ?? bb[bb.length - 1] : null,
+      );
     } catch (err) {
       notes.push("Kunne ikke hente Body Battery");
       console.warn("[garmin] Body Battery fetch failed", err);
@@ -396,7 +393,136 @@ async function mapPool<T, R>(
   return results;
 }
 
-/** Last N days of body battery, sleep score, HRV and run distance. */
+/** Inclusive date chunks of at most `maxDays` (Garmin stats endpoints often cap at 28). */
+function dateChunks(startISO: string, endISO: string, maxDays = 28): Array<[string, string]> {
+  const chunks: Array<[string, string]> = [];
+  let cursor = new Date(startISO + "T12:00:00");
+  const end = new Date(endISO + "T12:00:00");
+  while (cursor <= end) {
+    const chunkEnd = new Date(cursor);
+    chunkEnd.setDate(chunkEnd.getDate() + (maxDays - 1));
+    if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+    chunks.push([formatDate(cursor), formatDate(chunkEnd)]);
+    cursor = new Date(chunkEnd);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return chunks;
+}
+
+function rowDate(row: unknown): string {
+  if (!row || typeof row !== "object") return "";
+  const r = row as { calendarDate?: string; date?: string };
+  return (r.calendarDate || r.date || "").slice(0, 10);
+}
+
+/** Peak Body Battery for the day (typical post-sleep high), else last sample. */
+function extractBodyBatteryLevel(row: unknown): number | null {
+  if (!row || typeof row !== "object") return null;
+  const r = row as {
+    bodyBatteryValuesArray?: Array<number | null>[];
+    charged?: number;
+    bodyBatteryHighestValue?: number;
+  };
+  const values = r.bodyBatteryValuesArray;
+  if (Array.isArray(values) && values.length) {
+    const levels = values
+      .map((v) => (Array.isArray(v) ? v[1] : null))
+      .filter((n): n is number => typeof n === "number");
+    if (levels.length) return Math.max(...levels);
+  }
+  if (typeof r.bodyBatteryHighestValue === "number") return r.bodyBatteryHighestValue;
+  if (typeof r.charged === "number") return r.charged;
+  return null;
+}
+
+type GarminGet = {
+  get: <T>(url: string, data?: unknown) => Promise<T>;
+};
+
+async function fetchBodyBatteryByDate(
+  client: GarminGet,
+  startISO: string,
+  endISO: string,
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  for (const [from, to] of dateChunks(startISO, endISO, 28)) {
+    try {
+      const bb = await client.get<unknown[]>(
+        "https://connectapi.garmin.com/wellness-service/wellness/bodyBattery/reports/daily",
+        { params: { startDate: from, endDate: to } },
+      );
+      if (!Array.isArray(bb)) continue;
+      for (const row of bb) {
+        const date = rowDate(row);
+        const value = extractBodyBatteryLevel(row);
+        if (date && value != null) map.set(date, value);
+      }
+    } catch (err) {
+      console.warn(`[garmin] body battery chunk ${from}..${to} failed`, err);
+    }
+  }
+  return map;
+}
+
+async function fetchStepsByDate(
+  client: GarminGet,
+  startISO: string,
+  endISO: string,
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  for (const [from, to] of dateChunks(startISO, endISO, 28)) {
+    try {
+      const rows = await client.get<
+        Array<{
+          calendarDate?: string;
+          totalSteps?: number;
+          values?: { totalSteps?: number; stepGoal?: number };
+        }>
+      >(`https://connectapi.garmin.com/usersummary-service/stats/steps/daily/${from}/${to}`);
+      if (!Array.isArray(rows)) continue;
+      for (const row of rows) {
+        const date = rowDate(row);
+        const steps = row.totalSteps ?? row.values?.totalSteps;
+        if (date && typeof steps === "number") map.set(date, steps);
+      }
+    } catch (err) {
+      console.warn(`[garmin] steps chunk ${from}..${to} failed`, err);
+    }
+  }
+  return map;
+}
+
+async function fetchFloorsByDate(
+  client: GarminGet,
+  startISO: string,
+  endISO: string,
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  for (const [from, to] of dateChunks(startISO, endISO, 28)) {
+    try {
+      const rows = await client.get<
+        Array<{
+          calendarDate?: string;
+          values?: { wellnessFloorsAscended?: number; wellnessFloorsDescended?: number };
+          wellnessFloorsAscended?: number;
+        }>
+      >(`https://connectapi.garmin.com/usersummary-service/stats/floors/daily/${from}/${to}`);
+      if (!Array.isArray(rows)) continue;
+      for (const row of rows) {
+        const date = rowDate(row);
+        const floors = row.values?.wellnessFloorsAscended ?? row.wellnessFloorsAscended;
+        if (date && typeof floors === "number") {
+          map.set(date, Math.round(floors * 10) / 10);
+        }
+      }
+    } catch (err) {
+      console.warn(`[garmin] floors chunk ${from}..${to} failed`, err);
+    }
+  }
+  return map;
+}
+
+/** Last N days of body battery, sleep, HRV, km, steps and floors. */
 export async function fetchHistoryMetrics(days = 60): Promise<DayMetrics[]> {
   return withGarmin(async (client) => {
     const end = new Date();
@@ -409,36 +535,15 @@ export async function fetchHistoryMetrics(days = 60): Promise<DayMetrics[]> {
       dates.push(formatDate(daysAgo(i)));
     }
 
-    const bbByDate = new Map<string, number>();
-    try {
-      const bb = await client.get<
-        Array<{
-          date?: string;
-          calendarDate?: string;
-          bodyBatteryValuesArray?: [number, number, number?][];
-        }>
-      >(
-        `https://connectapi.garmin.com/wellness-service/wellness/bodyBattery/reports/daily/${startISO}/${endISO}`,
-      );
-      if (Array.isArray(bb)) {
-        for (const row of bb) {
-          const date = (row.calendarDate || row.date || "").slice(0, 10);
-          const values = row.bodyBatteryValuesArray;
-          if (!date || !values?.length) continue;
-          // Use morning / first reading of the day as readiness proxy, else last.
-          const morning = values.find((v) => v[1] != null)?.[1];
-          const last = values[values.length - 1]?.[1];
-          const value = last ?? morning;
-          if (typeof value === "number") bbByDate.set(date, value);
-        }
-      }
-    } catch (err) {
-      console.warn("[garmin] history body battery failed", err);
-    }
+    const [bbByDate, stepsByDate, floorsByDate] = await Promise.all([
+      fetchBodyBatteryByDate(client, startISO, endISO),
+      fetchStepsByDate(client, startISO, endISO),
+      fetchFloorsByDate(client, startISO, endISO),
+    ]);
 
     const kmByDate = new Map<string, number>();
     try {
-      const activities = await client.getActivities(0, 200);
+      const activities = await client.getActivities(0, 400);
       const cutoff = start.getTime();
       for (const a of activities || []) {
         const act = a as {
@@ -485,9 +590,20 @@ export async function fetchHistoryMetrics(days = 60): Promise<DayMetrics[]> {
 
       const body_battery = bbByDate.get(date) ?? null;
       const distance_km = kmByDate.get(date) ?? 0;
+      const steps = stepsByDate.get(date) ?? null;
+      const floors = floorsByDate.get(date) ?? null;
       const trafikklys = provisionalTrafficLight({ body_battery, sleep_score, hrv });
 
-      return { date, body_battery, sleep_score, hrv, distance_km, trafikklys };
+      return {
+        date,
+        body_battery,
+        sleep_score,
+        hrv,
+        distance_km,
+        steps,
+        floors,
+        trafikklys,
+      };
     });
 
     return daily;

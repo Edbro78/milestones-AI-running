@@ -17,7 +17,7 @@ export default async function DashboardPage() {
         <section>
           <h1 className="font-display text-4xl md:text-5xl">Dashboard</h1>
           <p className="mt-2 max-w-2xl text-[var(--ink-muted)]">
-            Siste 60 dager: Body Battery, sleep score, HRV og km løpt per dag.
+            Siste 60 dager: Body Battery, sleep score, HRV, km, skritt og etasjer.
           </p>
         </section>
         <ThirtyDayDashboard />

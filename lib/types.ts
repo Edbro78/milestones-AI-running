@@ -83,5 +83,7 @@ export interface DayMetrics {
   sleep_score: number | null;
   hrv: number | null;
   distance_km: number;
+  steps: number | null;
+  floors: number | null;
   trafikklys: Trafikklys;
 }

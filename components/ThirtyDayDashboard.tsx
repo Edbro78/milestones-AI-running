@@ -55,6 +55,8 @@ export function ThirtyDayDashboard() {
     sleep_score: d.sleep_score,
     hrv: d.hrv,
     distance_km: d.distance_km,
+    steps: d.steps,
+    floors: d.floors,
   }));
 
   return (
@@ -86,6 +88,20 @@ export function ThirtyDayDashboard() {
         data={chartData}
         dataKey="distance_km"
         color="#c9a227"
+      />
+      <MetricLineChart
+        title="Skritt per dag"
+        unit="skritt"
+        data={chartData}
+        dataKey="steps"
+        color="#3d6b5a"
+      />
+      <MetricLineChart
+        title="Etasjer per dag"
+        unit="etasjer"
+        data={chartData}
+        dataKey="floors"
+        color="#a67c2d"
       />
     </div>
   );
