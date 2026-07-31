@@ -123,7 +123,7 @@ export async function pingGemini(): Promise<string> {
       "Svar med én kort norsk setning som bekrefter at Gemini API fungerer for Milestones AI Running.",
     config: {
       temperature: 0.2,
-      maxOutputTokens: 80,
+      maxOutputTokens: 256,
     },
   });
   const text = response.text?.trim();
