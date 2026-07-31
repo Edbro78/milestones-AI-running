@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TrafficLightChart } from "@/components/TrafficLightChart";
 import type { DayMetrics } from "@/lib/types";
 
 const COLORS = {
@@ -18,7 +19,7 @@ export function TrafficLightTimeline() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/garmin/history-30d");
+        const res = await fetch("/api/garmin/history?days=60");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Kunne ikke hente data");
         if (!cancelled) setDays(data.days || []);
@@ -36,7 +37,7 @@ export function TrafficLightTimeline() {
   if (loading) {
     return (
       <div className="panel rounded-2xl p-6 animate-pulse">
-        <p className="text-[var(--ink-muted)]">Beregner trafikklys for siste 30 dager…</p>
+        <p className="text-[var(--ink-muted)]">Beregner trafikklys for siste 60 dager…</p>
       </div>
     );
   }
@@ -58,18 +59,21 @@ export function TrafficLightTimeline() {
         </p>
         <div className="mt-4 flex flex-wrap gap-4 text-sm">
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ background: COLORS.grønt }} /> Grønt
+            <span className="h-3 w-3 rounded-full" style={{ background: COLORS.rødt }} /> 1 Rødt
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ background: COLORS.gult }} /> Gult
+            <span className="h-3 w-3 rounded-full" style={{ background: COLORS.gult }} /> 2 Gult
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ background: COLORS.rødt }} /> Rødt
+            <span className="h-3 w-3 rounded-full" style={{ background: COLORS.grønt }} /> 3 Grønt
           </span>
         </div>
       </div>
 
+      <TrafficLightChart days={days} />
+
       <div className="panel rounded-2xl p-5">
+        <h3 className="font-display mb-3 text-xl">Dag for dag</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {days.map((d) => (
             <div

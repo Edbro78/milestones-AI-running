@@ -397,7 +397,7 @@ async function mapPool<T, R>(
 }
 
 /** Last N days of body battery, sleep score, HRV and run distance. */
-export async function fetchThirtyDayMetrics(days = 30): Promise<DayMetrics[]> {
+export async function fetchHistoryMetrics(days = 60): Promise<DayMetrics[]> {
   return withGarmin(async (client) => {
     const end = new Date();
     const start = daysAgo(days - 1);
@@ -433,7 +433,7 @@ export async function fetchThirtyDayMetrics(days = 30): Promise<DayMetrics[]> {
         }
       }
     } catch (err) {
-      console.warn("[garmin] 30d body battery failed", err);
+      console.warn("[garmin] history body battery failed", err);
     }
 
     const kmByDate = new Map<string, number>();
@@ -457,10 +457,10 @@ export async function fetchThirtyDayMetrics(days = 30): Promise<DayMetrics[]> {
         kmByDate.set(date, Math.round(((kmByDate.get(date) || 0) + km) * 100) / 100);
       }
     } catch (err) {
-      console.warn("[garmin] 30d activities failed", err);
+      console.warn("[garmin] history activities failed", err);
     }
 
-    const daily = await mapPool(dates, 4, async (date) => {
+    const daily = await mapPool(dates, 6, async (date) => {
       let sleep_score: number | null = null;
       let hrv: number | null = null;
 

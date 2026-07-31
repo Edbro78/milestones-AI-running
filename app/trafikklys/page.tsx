@@ -17,7 +17,7 @@ export default async function TrafikklysPage() {
         <section>
           <h1 className="font-display text-4xl md:text-5xl">Trafikklys</h1>
           <p className="mt-2 max-w-2xl text-[var(--ink-muted)]">
-            Én status per dag for siste 30 dager. Beregningsregler finpusses senere.
+            Siste 60 dager som linjediagram (1 rødt · 2 gult · 3 grønt). Beregningsregler finpusses senere.
           </p>
         </section>
         <TrafficLightTimeline />

@@ -13,7 +13,7 @@ export function ThirtyDayDashboard() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/garmin/history-30d");
+        const res = await fetch("/api/garmin/history?days=60");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Kunne ikke hente Garmin-data");
         if (!cancelled) setDays(data.days || []);
@@ -34,7 +34,7 @@ export function ThirtyDayDashboard() {
     return (
       <div className="panel rounded-2xl p-6 animate-pulse">
         <p className="text-[var(--ink-muted)]">
-          Henter siste 30 dager fra Garmin (kan ta litt tid)…
+          Henter siste 60 dager fra Garmin (kan ta litt tid)…
         </p>
       </div>
     );
