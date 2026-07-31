@@ -113,3 +113,20 @@ Trening siden forrige testløp: ${input.trainingSinceLast}`;
   const text = await completeJson(system, user);
   return parseAiJson(text);
 }
+
+/** Lightweight Gemini connectivity check for the Anbefaling tab. */
+export async function pingGemini(): Promise<string> {
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: GEMINI_MODEL,
+    contents:
+      "Svar med én kort norsk setning som bekrefter at Gemini API fungerer for Milestones AI Running.",
+    config: {
+      temperature: 0.2,
+      maxOutputTokens: 80,
+    },
+  });
+  const text = response.text?.trim();
+  if (!text) throw new Error("Gemini returnerte tomt svar");
+  return text;
+}

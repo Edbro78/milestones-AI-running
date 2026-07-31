@@ -1,7 +1,9 @@
 import { GarminConnect } from "garmin-connect";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { GarminSnapshot } from "@/lib/types";
+import type { DayMetrics, GarminSnapshot, Trafikklys } from "@/lib/types";
 import { todayISO } from "@/lib/time";
+
+export type { DayMetrics };
 
 type OauthBundle = {
   oauth1: Record<string, unknown>;
@@ -343,4 +345,151 @@ export function summarizeActivities(
     (a) => `${a.date}: ${a.distanceKm} km på ${Math.round(a.durationSec / 60)} min (snittpuls ${a.avgHr ?? "—"})`,
   );
   return `Antall løpeturer: ${runs.length}, total distanse: ${Math.round(totalKm)} km.\nSiste økter:\n${recent.join("\n")}`;
+}
+
+/** Temporary traffic-light heuristic until detailed rules arrive. */
+export function provisionalTrafficLight(day: {
+  body_battery: number | null;
+  sleep_score: number | null;
+  hrv: number | null;
+}): Trafikklys {
+  let score = 0;
+  let signals = 0;
+
+  if (day.body_battery != null) {
+    signals += 1;
+    if (day.body_battery >= 65) score += 1;
+    else if (day.body_battery < 35) score -= 1;
+  }
+  if (day.sleep_score != null) {
+    signals += 1;
+    if (day.sleep_score >= 75) score += 1;
+    else if (day.sleep_score < 50) score -= 1;
+  }
+  if (day.hrv != null) {
+    signals += 1;
+    // Absolute HRV is personal; treat very low as red-ish, higher as green-ish.
+    if (day.hrv >= 50) score += 1;
+    else if (day.hrv < 25) score -= 1;
+  }
+
+  if (signals === 0) return "gult";
+  if (score <= -1) return "rødt";
+  if (score >= 1) return "grønt";
+  return "gult";
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let idx = 0;
+  async function worker() {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
+}
+
+/** Last N days of body battery, sleep score, HRV and run distance. */
+export async function fetchThirtyDayMetrics(days = 30): Promise<DayMetrics[]> {
+  return withGarmin(async (client) => {
+    const end = new Date();
+    const start = daysAgo(days - 1);
+    const startISO = formatDate(start);
+    const endISO = formatDate(end);
+
+    const dates: string[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      dates.push(formatDate(daysAgo(i)));
+    }
+
+    const bbByDate = new Map<string, number>();
+    try {
+      const bb = await client.get<
+        Array<{
+          date?: string;
+          calendarDate?: string;
+          bodyBatteryValuesArray?: [number, number, number?][];
+        }>
+      >(
+        `https://connectapi.garmin.com/wellness-service/wellness/bodyBattery/reports/daily/${startISO}/${endISO}`,
+      );
+      if (Array.isArray(bb)) {
+        for (const row of bb) {
+          const date = (row.calendarDate || row.date || "").slice(0, 10);
+          const values = row.bodyBatteryValuesArray;
+          if (!date || !values?.length) continue;
+          // Use morning / first reading of the day as readiness proxy, else last.
+          const morning = values.find((v) => v[1] != null)?.[1];
+          const last = values[values.length - 1]?.[1];
+          const value = last ?? morning;
+          if (typeof value === "number") bbByDate.set(date, value);
+        }
+      }
+    } catch (err) {
+      console.warn("[garmin] 30d body battery failed", err);
+    }
+
+    const kmByDate = new Map<string, number>();
+    try {
+      const activities = await client.getActivities(0, 200);
+      const cutoff = start.getTime();
+      for (const a of activities || []) {
+        const act = a as {
+          startTimeLocal?: string;
+          distance?: number;
+          activityType?: { typeKey?: string };
+        };
+        const startLocal = act.startTimeLocal;
+        if (!startLocal) continue;
+        const t = new Date(startLocal).getTime();
+        if (t < cutoff) continue;
+        const type = (act.activityType?.typeKey || "").toLowerCase();
+        if (!type.includes("run") && !type.includes("trail")) continue;
+        const date = startLocal.slice(0, 10);
+        const km = (act.distance || 0) / 1000;
+        kmByDate.set(date, Math.round(((kmByDate.get(date) || 0) + km) * 100) / 100);
+      }
+    } catch (err) {
+      console.warn("[garmin] 30d activities failed", err);
+    }
+
+    const daily = await mapPool(dates, 4, async (date) => {
+      let sleep_score: number | null = null;
+      let hrv: number | null = null;
+
+      try {
+        const sleep = await client.getSleepData(new Date(date + "T12:00:00"));
+        sleep_score =
+          (sleep as { dailySleepDTO?: { sleepScores?: { overall?: { value?: number } } } })
+            ?.dailySleepDTO?.sleepScores?.overall?.value ?? null;
+      } catch {
+        // skip day
+      }
+
+      try {
+        const hrvData = await client.get<Record<string, unknown>>(
+          `https://connectapi.garmin.com/hrv-service/hrv/${date}`,
+        );
+        const summary = hrvData?.hrvSummary as { lastNightAvg?: number } | undefined;
+        hrv = summary?.lastNightAvg ?? null;
+      } catch {
+        // skip day
+      }
+
+      const body_battery = bbByDate.get(date) ?? null;
+      const distance_km = kmByDate.get(date) ?? 0;
+      const trafikklys = provisionalTrafficLight({ body_battery, sleep_score, hrv });
+
+      return { date, body_battery, sleep_score, hrv, distance_km, trafikklys };
+    });
+
+    return daily;
+  });
 }

@@ -76,3 +76,12 @@ export interface DailyCheckin {
   claude_recommendation: DailyRecommendation | null;
   created_at: string;
 }
+
+export interface DayMetrics {
+  date: string;
+  body_battery: number | null;
+  sleep_score: number | null;
+  hrv: number | null;
+  distance_km: number;
+  trafikklys: Trafikklys;
+}

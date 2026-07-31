@@ -3,7 +3,8 @@ import Link from "next/link";
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/milestones", label: "Mine mål" },
-  { href: "/test-runs", label: "Testløp" },
+  { href: "/trafikklys", label: "Trafikklys" },
+  { href: "/anbefaling", label: "Anbefaling" },
   { href: "/settings", label: "Innstillinger" },
 ];
 
