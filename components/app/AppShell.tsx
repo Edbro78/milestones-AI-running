@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { getMockRecords, MOCK_GOALS, MOCK_PROFILE } from "@/lib/mockData";
+import { BottomSheet } from "@/components/app/ui";
 import {
   GoalsScreen,
   HistoryScreen,
@@ -31,20 +32,38 @@ const TITLES: Record<TabKey, string> = {
   historikk: "Historikk",
 };
 
+export type SheetApi = {
+  openSheet: (title: string, node: ReactNode) => void;
+  closeSheet: () => void;
+};
+
 export function AppShell({ userEmail }: { userEmail: string }) {
   const [tab, setTab] = useState<TabKey>("okt");
+  const [sheet, setSheet] = useState<{ title: string; node: ReactNode } | null>(
+    null,
+  );
   const records = useMemo(() => getMockRecords(28), []);
   const today = records[records.length - 1];
 
+  const sheetApi: SheetApi = {
+    openSheet: (title, node) => setSheet({ title, node }),
+    closeSheet: () => setSheet(null),
+  };
+
+  function goTo(next: TabKey) {
+    setSheet(null);
+    setTab(next);
+  }
+
   return (
-    <div className="app-min-h flex flex-col" style={{ background: "var(--canvas)" }}>
+    <div className="app-fixed flex flex-col" style={{ background: "var(--canvas)" }}>
       <header
-        className="sticky top-0 z-20 flex items-center justify-between"
+        className="flex flex-none items-center justify-between"
         style={{
           background: "var(--white)",
           borderBottom: "1px solid var(--border)",
-          paddingTop: "max(0.75rem, env(safe-area-inset-top))",
-          paddingBottom: "0.75rem",
+          paddingTop: "max(0.6rem, env(safe-area-inset-top))",
+          paddingBottom: "0.6rem",
           paddingLeft: "max(1rem, env(safe-area-inset-left))",
           paddingRight: "max(1rem, env(safe-area-inset-right))",
         }}
@@ -56,10 +75,7 @@ export function AppShell({ userEmail }: { userEmail: string }) {
           >
             {TITLES[tab]}
           </p>
-          <p
-            className="mt-0.5 text-[0.66rem]"
-            style={{ color: "var(--gray-400)" }}
-          >
+          <p className="mt-0.5 text-[0.64rem]" style={{ color: "var(--gray-400)" }}>
             Milestones · {userEmail}
           </p>
         </div>
@@ -82,22 +98,26 @@ export function AppShell({ userEmail }: { userEmail: string }) {
 
       <main
         className="flex-1"
-        style={{
-          padding: "1rem",
-        }}
+        style={{ padding: "0.75rem", overflow: "hidden" }}
       >
         {tab === "profil" && (
           <ProfileScreen profile={MOCK_PROFILE} lastSync={new Date().toISOString()} />
         )}
         {tab === "rapport" && <ReportScreen records={records} />}
-        {tab === "mal" && <GoalsScreen goals={MOCK_GOALS} records={records} />}
-        {tab === "okt" && <TodayScreen today={today} goals={MOCK_GOALS} />}
+        {tab === "mal" && (
+          <GoalsScreen goals={MOCK_GOALS} records={records} sheet={sheetApi} />
+        )}
+        {tab === "okt" && (
+          <TodayScreen today={today} goals={MOCK_GOALS} sheet={sheetApi} />
+        )}
         {tab === "trender" && <TrendsScreen records={records} />}
-        {tab === "historikk" && <HistoryScreen records={records} />}
+        {tab === "historikk" && (
+          <HistoryScreen records={records} sheet={sheetApi} />
+        )}
       </main>
 
       <nav
-        className="sticky bottom-0 z-20"
+        className="flex-none"
         style={{
           background: "var(--white)",
           borderTop: "1px solid var(--border)",
@@ -111,21 +131,17 @@ export function AppShell({ userEmail }: { userEmail: string }) {
               <button
                 key={t.key}
                 type="button"
-                onClick={() => setTab(t.key)}
+                onClick={() => goTo(t.key)}
                 aria-current={active ? "page" : undefined}
                 className="flex flex-1 flex-col items-center justify-center gap-0.5"
                 style={{
-                  minHeight: 56,
+                  minHeight: 52,
                   color: active ? "var(--blue-main)" : "#98A2B3",
-                  paddingTop: 6,
+                  paddingTop: 4,
                 }}
               >
-                <i
-                  className={`bx ${t.icon}`}
-                  aria-hidden="true"
-                  style={{ fontSize: "1.35rem" }}
-                />
-                <span style={{ fontSize: "0.62rem", fontWeight: active ? 600 : 500 }}>
+                <i className={`bx ${t.icon}`} aria-hidden="true" style={{ fontSize: "1.3rem" }} />
+                <span style={{ fontSize: "0.6rem", fontWeight: active ? 600 : 500 }}>
                   {t.label}
                 </span>
               </button>
@@ -133,6 +149,14 @@ export function AppShell({ userEmail }: { userEmail: string }) {
           })}
         </div>
       </nav>
+
+      <BottomSheet
+        open={!!sheet}
+        onClose={() => setSheet(null)}
+        title={sheet?.title ?? ""}
+      >
+        {sheet?.node}
+      </BottomSheet>
     </div>
   );
 }

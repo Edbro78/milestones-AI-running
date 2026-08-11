@@ -1,13 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { CATEGORIES, METRIC_META, METRIC_ORDER } from "@/lib/categories";
-import {
-  coachReply,
-  suggestSession,
-  weeklyReport,
-  type SessionSuggestion,
-} from "@/lib/coach";
+import { coachReply, suggestSession, weeklyReport } from "@/lib/coach";
 import {
   daysUntil,
   formatDate,
@@ -21,14 +16,14 @@ import { predictFinishSeconds } from "@/lib/prognosis";
 import { computeSubscores } from "@/lib/trafficLight";
 import type { Profile, Goal } from "@/lib/mockData";
 import type { DailyRecord, MetricKey } from "@/lib/types";
+import type { SheetApi } from "@/components/app/AppShell";
 import {
   Card,
   CategoryDot,
-  CategoryPill,
+  MiniStat,
   ScoreBar,
   SectionTitle,
   Sparkline,
-  StatRow,
 } from "@/components/app/ui";
 
 function metricValueText(key: MetricKey, value: number): string {
@@ -57,101 +52,101 @@ export function ProfileScreen({
     setTimeout(() => {
       setSyncedAt(new Date().toISOString());
       setSyncing(false);
-    }, 900);
+    }, 800);
   }
 
+  const rows: [string, string][] = [
+    ["Alder", `${age} år`],
+    ["Vekt", `${formatNumber(profile.weightKg)} kg`],
+    ["Makspuls", `${profile.hrMax} bpm`],
+    ["Terskelpuls", `${profile.hrThreshold} bpm`],
+    ["HRV-baseline", `${formatNumber(profile.hrvBaseline)} ms`],
+    ["Hvilepuls-baseline", `${profile.rhrBaseline} bpm`],
+    ["Ukentlig volum", `${formatNumber(profile.weeklyKm)} km`],
+  ];
+
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
+    <div className="flex h-full flex-col gap-2.5">
+      <Card style={{ padding: "0.75rem" }}>
         <div className="flex items-center gap-3">
           <div
             className="flex items-center justify-center"
             style={{
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               borderRadius: "50%",
               background: "var(--blue-100)",
               color: "var(--blue-main)",
               fontWeight: 700,
-              fontSize: "1.2rem",
+              fontSize: "1.1rem",
             }}
           >
             {profile.name.charAt(0)}
           </div>
           <div>
-            <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>{profile.name}</p>
-            <p style={{ color: "var(--gray-500)", fontSize: "0.85rem" }}>
+            <p style={{ fontWeight: 700, fontSize: "1.05rem" }}>{profile.name}</p>
+            <p style={{ color: "var(--gray-500)", fontSize: "0.8rem" }}>
               {age} år · {formatNumber(profile.weeklyKm)} km/uke
             </p>
           </div>
         </div>
       </Card>
 
-      <div>
-        <SectionTitle>Fysiologi</SectionTitle>
-        <Card style={{ padding: "0.25rem 1rem" }}>
-          <StatRow label="Alder" value={`${age} år`} />
-          <StatRow label="Vekt" value={`${formatNumber(profile.weightKg)} kg`} />
-          <StatRow label="Makspuls" value={`${profile.hrMax} bpm`} />
-          <StatRow label="Terskelpuls" value={`${profile.hrThreshold} bpm`} />
-          <StatRow
-            label="HVR-baseline"
-            value={`${formatNumber(profile.hrvBaseline)} ms`}
-          />
-          <StatRow
-            label="Hvilepuls-baseline"
-            value={`${profile.rhrBaseline} bpm`}
-          />
-          <div style={{ padding: "0.5rem 0" }}>
-            <div className="flex items-center justify-between">
-              <span style={{ color: "var(--gray-600)", fontSize: "0.9rem" }}>
-                Ukentlig volum
-              </span>
-              <span style={{ fontWeight: 600 }}>
-                {formatNumber(profile.weeklyKm)} km
-              </span>
-            </div>
+      <Card style={{ padding: "0.25rem 0.85rem" }}>
+        {rows.map(([label, value], i) => (
+          <div
+            key={label}
+            className="flex items-center justify-between"
+            style={{
+              padding: "0.45rem 0",
+              borderBottom:
+                i < rows.length - 1 ? "1px solid var(--border)" : "none",
+            }}
+          >
+            <span style={{ color: "var(--gray-600)", fontSize: "0.85rem" }}>
+              {label}
+            </span>
+            <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{value}</span>
           </div>
-        </Card>
-      </div>
+        ))}
+      </Card>
 
-      <div>
-        <SectionTitle>Garmin Connect</SectionTitle>
-        <Card>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "var(--success-500)",
-                  display: "inline-block",
-                }}
-              />
-              <span style={{ fontWeight: 600 }}>Tilkoblet</span>
-            </div>
-            <span style={{ color: "var(--gray-500)", fontSize: "0.8rem" }}>
-              {syncedAt
-                ? `Sist synk ${new Date(syncedAt).toLocaleString("nb-NO", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                : "Ikke synkronisert"}
+      <Card style={{ padding: "0.75rem" }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "var(--success-500)",
+                display: "inline-block",
+              }}
+            />
+            <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+              Garmin tilkoblet
             </span>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost mt-3 w-full"
-            onClick={sync}
-            disabled={syncing}
-          >
-            {syncing ? "Synkroniserer…" : "Synkroniser nå"}
-          </button>
-        </Card>
-      </div>
+          <span style={{ color: "var(--gray-500)", fontSize: "0.72rem" }}>
+            {syncedAt
+              ? `Synk ${new Date(syncedAt).toLocaleString("nb-NO", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : "Ikke synkronisert"}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-ghost mt-2.5 w-full"
+          onClick={sync}
+          disabled={syncing}
+        >
+          {syncing ? "Synkroniserer…" : "Synkroniser"}
+        </button>
+      </Card>
     </div>
   );
 }
@@ -176,106 +171,83 @@ export function ReportScreen({ records }: { records: DailyRecord[] }) {
     setTimeout(() => {
       setReport(weeklyReport(records));
       setLoading(false);
-    }, 700);
+    }, 600);
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <SectionTitle>Uken</SectionTitle>
-        <Card>
-          <div className="flex items-end gap-1" style={{ height: 56 }}>
-            {week.map((r) => {
-              const c = CATEGORIES[r.category];
-              return (
+    <div className="flex h-full flex-col gap-2.5">
+      <Card style={{ padding: "0.75rem" }}>
+        <SectionTitle>Sju dager</SectionTitle>
+        <div className="flex items-end gap-1" style={{ height: 44 }}>
+          {week.map((r) => {
+            const c = CATEGORIES[r.category];
+            return (
+              <div
+                key={r.date}
+                className="flex flex-1 flex-col items-center justify-end gap-1"
+                title={`${formatDate(r.date)} · ${c.label} · ${r.score}`}
+              >
                 <div
-                  key={r.date}
-                  className="flex-1 flex flex-col items-center justify-end gap-1"
-                  title={`${formatDate(r.date)} · ${c.label} · ${r.score}`}
-                >
-                  <div
-                    style={{
-                      width: "100%",
-                      height: `${Math.max(8, (r.score / 100) * 40)}px`,
-                      background: c.dot,
-                      borderRadius: 3,
-                    }}
-                  />
-                  <span
-                    style={{ fontSize: "0.6rem", color: "var(--gray-400)" }}
-                  >
-                    {formatShortDay(r.date).split(" ")[0]}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+                  style={{
+                    width: "100%",
+                    height: `${Math.max(6, (r.score / 100) * 32)}px`,
+                    background: c.dot,
+                    borderRadius: 3,
+                  }}
+                />
+                <span style={{ fontSize: "0.58rem", color: "var(--gray-400)" }}>
+                  {formatShortDay(r.date).split(" ")[0]}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-2">
+        <MiniStat label="Snittskår" value={avgScore} />
+        <MiniStat label="HRV z" value={formatSigned(avgHrv, 2)} />
+        <MiniStat
+          label="ACWR"
+          value={formatNumber(lastAcwr, 2)}
+          color={lastAcwr >= 1.5 ? "var(--error-600)" : undefined}
+        />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card style={{ padding: "0.75rem" }}>
-          <p style={{ fontSize: "0.7rem", color: "var(--gray-500)" }}>
-            Snittskår
-          </p>
-          <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{avgScore}</p>
-        </Card>
-        <Card style={{ padding: "0.75rem" }}>
-          <p style={{ fontSize: "0.7rem", color: "var(--gray-500)" }}>HRV z</p>
-          <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>
-            {formatSigned(avgHrv, 2)}
-          </p>
-        </Card>
-        <Card style={{ padding: "0.75rem" }}>
-          <p style={{ fontSize: "0.7rem", color: "var(--gray-500)" }}>ACWR</p>
-          <p
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: 700,
-              color: lastAcwr >= 1.5 ? "var(--error-600)" : "var(--sp-navy)",
-            }}
-          >
-            {formatNumber(lastAcwr, 2)}
-          </p>
-        </Card>
-      </div>
-
-      <div>
+      <Card style={{ padding: "0.85rem", flex: 1, minHeight: 0, overflow: "hidden" }}>
         <SectionTitle>Ukesoppsummering</SectionTitle>
-        <Card>
+        <div style={{ overflow: "hidden" }}>
           {report ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {report.split("\n\n").map((p, i) => (
                 <p
                   key={i}
                   style={{
                     color: "var(--gray-700)",
-                    fontSize: "0.92rem",
-                    lineHeight: 1.5,
+                    fontSize: "0.84rem",
+                    lineHeight: 1.45,
                   }}
                 >
                   {p}
                 </p>
               ))}
-              <p style={{ fontSize: "0.72rem", color: "var(--gray-400)" }}>
-                Generert lokalt (uten AI). Gemini kobles på senere.
-              </p>
             </div>
           ) : (
-            <p style={{ color: "var(--gray-500)", fontSize: "0.9rem" }}>
-              Ingen rapport generert for denne uken ennå.
+            <p style={{ color: "var(--gray-500)", fontSize: "0.88rem" }}>
+              Ingen rapport generert for denne uken ennå. Genereres lokalt inntil
+              Gemini kobles på.
             </p>
           )}
-          <button
-            type="button"
-            className="btn btn-primary mt-3 w-full"
-            onClick={generate}
-            disabled={loading}
-          >
-            {loading ? "Genererer…" : "Generer ukesrapport"}
-          </button>
-        </Card>
-      </div>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary mt-3 w-full"
+          onClick={generate}
+          disabled={loading}
+        >
+          {loading ? "Genererer…" : "Generer ukesrapport"}
+        </button>
+      </Card>
     </div>
   );
 }
@@ -285,38 +257,30 @@ export function ReportScreen({ records }: { records: DailyRecord[] }) {
 export function GoalsScreen({
   goals: initialGoals,
   records,
+  sheet,
 }: {
   goals: Goal[];
   records: DailyRecord[];
+  sheet: SheetApi;
 }) {
   const [goals, setGoals] = useState<Goal[]>(initialGoals);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
 
   const main = goals.find((g) => g.isMain);
   const others = goals
     .filter((g) => !g.isMain)
     .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
 
-  function resetForm() {
-    setTitle("");
-    setDate("");
-    setTime("");
-    setEditingId(null);
-    setShowForm(false);
-  }
-
-  function saveGoal() {
-    if (!title || !date) return;
-    const targetTimeS = parseTimeToSeconds(time || "0");
-    if (editingId) {
+  function saveGoal(data: {
+    id?: string;
+    title: string;
+    eventDate: string;
+    targetTimeS: number;
+  }) {
+    if (data.id) {
       setGoals((gs) =>
         gs.map((g) =>
-          g.id === editingId
-            ? { ...g, title, eventDate: date, targetTimeS }
+          g.id === data.id
+            ? { ...g, title: data.title, eventDate: data.eventDate, targetTimeS: data.targetTimeS }
             : g,
         ),
       );
@@ -325,127 +289,131 @@ export function GoalsScreen({
         ...gs,
         {
           id: `goal-${Date.now()}`,
-          title,
-          eventDate: date,
-          targetTimeS,
+          title: data.title,
+          eventDate: data.eventDate,
+          targetTimeS: data.targetTimeS,
           isMain: false,
         },
       ]);
     }
-    resetForm();
+    sheet.closeSheet();
   }
 
-  function editGoal(g: Goal) {
-    setEditingId(g.id);
-    setTitle(g.title);
-    setDate(g.eventDate);
-    setTime(formatDuration(g.targetTimeS));
-    setShowForm(true);
+  function openForm(goal?: Goal) {
+    sheet.openSheet(
+      goal ? "Rediger mål" : "Nytt mål",
+      <GoalForm goal={goal} onSave={saveGoal} />,
+    );
   }
 
   function deleteGoal(id: string) {
     setGoals((gs) => gs.filter((g) => g.id !== id));
-    if (editingId === id) resetForm();
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {main && (
-        <div>
-          <SectionTitle>Hovedmål</SectionTitle>
-          <MainGoalCard goal={main} records={records} onEdit={editGoal} />
-        </div>
-      )}
+    <div className="flex h-full flex-col gap-2.5">
+      {main && <MainGoalCard goal={main} records={records} onEdit={() => openForm(main)} />}
 
-      <div>
-        <SectionTitle>Andre mål</SectionTitle>
-        <div className="flex flex-col gap-3">
-          {others.map((g) => (
-            <GoalCard
-              key={g.id}
-              goal={g}
-              onEdit={editGoal}
-              onDelete={deleteGoal}
-            />
-          ))}
-          {others.length === 0 && (
-            <Card>
-              <p style={{ color: "var(--gray-500)", fontSize: "0.9rem" }}>
-                Ingen flere mål ennå.
-              </p>
-            </Card>
-          )}
-        </div>
+      <SectionTitle>Andre mål</SectionTitle>
+      <div className="flex flex-col gap-2">
+        {others.map((g) => (
+          <GoalCard
+            key={g.id}
+            goal={g}
+            onEdit={() => openForm(g)}
+            onDelete={() => deleteGoal(g.id)}
+          />
+        ))}
+        {others.length === 0 && (
+          <Card style={{ padding: "0.75rem" }}>
+            <p style={{ color: "var(--gray-500)", fontSize: "0.88rem" }}>
+              Ingen flere mål ennå.
+            </p>
+          </Card>
+        )}
       </div>
 
-      {showForm ? (
-        <Card>
-          <SectionTitle>{editingId ? "Rediger mål" : "Nytt mål"}</SectionTitle>
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="label" htmlFor="g-title">
-                Tittel
-              </label>
-              <input
-                id="g-title"
-                className="input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="F.eks. Oslo maraton"
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="g-date">
-                Dato
-              </label>
-              <input
-                id="g-date"
-                className="input"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="g-time">
-                Måltid (t:mm:ss)
-              </label>
-              <input
-                id="g-time"
-                className="input"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                placeholder="3:00:00"
-                inputMode="numeric"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="btn btn-primary flex-1"
-                onClick={saveGoal}
-              >
-                Lagre
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={resetForm}
-              >
-                Avbryt
-              </button>
-            </div>
-          </div>
-        </Card>
-      ) : (
-        <button
-          type="button"
-          className="btn btn-ghost w-full"
-          onClick={() => setShowForm(true)}
-        >
-          <i className="bx bx-plus" aria-hidden="true" /> Legg til mål
-        </button>
-      )}
+      <button
+        type="button"
+        className="btn btn-ghost mt-auto w-full"
+        onClick={() => openForm()}
+      >
+        <i className="bx bx-plus" aria-hidden="true" /> Legg til mål
+      </button>
+    </div>
+  );
+}
+
+function GoalForm({
+  goal,
+  onSave,
+}: {
+  goal?: Goal;
+  onSave: (data: {
+    id?: string;
+    title: string;
+    eventDate: string;
+    targetTimeS: number;
+  }) => void;
+}) {
+  const [title, setTitle] = useState(goal?.title ?? "");
+  const [date, setDate] = useState(goal?.eventDate ?? "");
+  const [time, setTime] = useState(goal ? formatDuration(goal.targetTimeS) : "");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <label className="label" htmlFor="g-title">
+          Tittel
+        </label>
+        <input
+          id="g-title"
+          className="input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="F.eks. Oslo maraton"
+        />
+      </div>
+      <div>
+        <label className="label" htmlFor="g-date">
+          Dato
+        </label>
+        <input
+          id="g-date"
+          className="input"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="label" htmlFor="g-time">
+          Måltid (t:mm:ss)
+        </label>
+        <input
+          id="g-time"
+          className="input"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          placeholder="3:00:00"
+          inputMode="numeric"
+        />
+      </div>
+      <button
+        type="button"
+        className="btn btn-primary w-full"
+        disabled={!title || !date}
+        onClick={() =>
+          onSave({
+            id: goal?.id,
+            title,
+            eventDate: date,
+            targetTimeS: parseTimeToSeconds(time || "0"),
+          })
+        }
+      >
+        Lagre
+      </button>
     </div>
   );
 }
@@ -457,7 +425,7 @@ function MainGoalCard({
 }: {
   goal: Goal;
   records: DailyRecord[];
-  onEdit: (g: Goal) => void;
+  onEdit: () => void;
 }) {
   const days = daysUntil(goal.eventDate);
   const predicted = predictFinishSeconds(goal.targetTimeS, records);
@@ -465,23 +433,29 @@ function MainGoalCard({
   const ahead = deviation <= 0;
 
   return (
-    <Card
+    <div
+      className="panel"
       style={{
         background: "var(--sp-navy)",
         color: "#fff",
         border: "none",
+        borderRadius: "var(--radius-lg)",
+        padding: "0.9rem",
       }}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p style={{ fontWeight: 700, fontSize: "1.15rem" }}>{goal.title}</p>
-          <p style={{ color: "var(--blue-200)", fontSize: "0.85rem" }}>
+          <p style={{ fontSize: "0.62rem", letterSpacing: "0.1em", color: "var(--blue-200)", textTransform: "uppercase" }}>
+            Hovedmål
+          </p>
+          <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>{goal.title}</p>
+          <p style={{ color: "var(--blue-200)", fontSize: "0.8rem" }}>
             {formatDate(goal.eventDate)} · {days} dager igjen
           </p>
         </div>
         <button
           type="button"
-          onClick={() => onEdit(goal)}
+          onClick={onEdit}
           aria-label="Rediger hovedmål"
           style={{ color: "var(--blue-200)", padding: 4 }}
         >
@@ -490,38 +464,31 @@ function MainGoalCard({
       </div>
 
       <div
-        className="mt-4 flex items-center justify-between"
+        className="mt-3 flex items-center justify-between"
         style={{
-          padding: "0.75rem",
+          padding: "0.6rem 0.7rem",
           background: "rgba(255,255,255,0.08)",
           borderRadius: "var(--radius-md)",
         }}
       >
         <div>
-          <p style={{ fontSize: "0.7rem", color: "var(--blue-200)" }}>Måltid</p>
-          <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>
+          <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>Måltid</p>
+          <p style={{ fontWeight: 700, fontSize: "1rem" }}>
             {formatDuration(goal.targetTimeS)}
           </p>
         </div>
-        <i
-          className="bx bx-right-arrow-alt"
-          aria-hidden="true"
-          style={{ color: "var(--blue-200)" }}
-        />
         <div>
-          <p style={{ fontSize: "0.7rem", color: "var(--blue-200)" }}>
-            Estimert nå
-          </p>
-          <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>
+          <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>Estimert nå</p>
+          <p style={{ fontWeight: 700, fontSize: "1rem" }}>
             {formatDuration(predicted)}
           </p>
         </div>
         <div style={{ textAlign: "right" }}>
-          <p style={{ fontSize: "0.7rem", color: "var(--blue-200)" }}>Avvik</p>
+          <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>Avvik</p>
           <p
             style={{
               fontWeight: 700,
-              fontSize: "1.1rem",
+              fontSize: "1rem",
               color: ahead ? "#6CE9A6" : "#FDA29B",
             }}
           >
@@ -530,18 +497,12 @@ function MainGoalCard({
           </p>
         </div>
       </div>
-      <p
-        style={{
-          marginTop: "0.6rem",
-          fontSize: "0.78rem",
-          color: "var(--blue-200)",
-        }}
-      >
+      <p style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--blue-200)" }}>
         {ahead
           ? "Prognosen ligger foran måltiden på gjeldende form."
-          : "Prognosen ligger bak måltiden — formen må heves før løpet."}
+          : "Prognosen ligger bak måltiden — formen må heves."}
       </p>
-    </Card>
+    </div>
   );
 }
 
@@ -551,43 +512,33 @@ function GoalCard({
   onDelete,
 }: {
   goal: Goal;
-  onEdit: (g: Goal) => void;
-  onDelete: (id: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const days = daysUntil(goal.eventDate);
   return (
-    <Card>
-      <div className="flex items-start justify-between">
+    <Card style={{ padding: "0.65rem 0.75rem" }}>
+      <div className="flex items-center justify-between">
         <div>
-          <p style={{ fontWeight: 600 }}>{goal.title}</p>
-          <p style={{ color: "var(--gray-500)", fontSize: "0.82rem" }}>
-            {formatDate(goal.eventDate)} · måltid {formatDuration(goal.targetTimeS)}
+          <p style={{ fontWeight: 600, fontSize: "0.92rem" }}>{goal.title}</p>
+          <p style={{ color: "var(--gray-500)", fontSize: "0.78rem" }}>
+            {formatDate(goal.eventDate)} · {formatDuration(goal.targetTimeS)}
           </p>
         </div>
         <div className="flex items-center gap-1">
           <span
             style={{
-              fontSize: "0.78rem",
+              fontSize: "0.76rem",
               fontWeight: 600,
               color: days < 0 ? "var(--gray-400)" : "var(--blue-main)",
             }}
           >
             {days < 0 ? "fullført" : `${days} d`}
           </span>
-          <button
-            type="button"
-            onClick={() => onEdit(goal)}
-            aria-label="Rediger"
-            style={{ color: "var(--gray-400)", padding: 4 }}
-          >
+          <button type="button" onClick={onEdit} aria-label="Rediger" style={{ color: "var(--gray-400)", padding: 4 }}>
             <i className="bx bx-edit-alt" aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            onClick={() => onDelete(goal.id)}
-            aria-label="Slett"
-            style={{ color: "var(--gray-400)", padding: 4 }}
-          >
+          <button type="button" onClick={onDelete} aria-label="Slett" style={{ color: "var(--gray-400)", padding: 4 }}>
             <i className="bx bx-trash" aria-hidden="true" />
           </button>
         </div>
@@ -601,273 +552,224 @@ function GoalCard({
 export function TodayScreen({
   today,
   goals,
+  sheet,
 }: {
   today: DailyRecord;
   goals: Goal[];
+  sheet: SheetApi;
 }) {
   const c = CATEGORIES[today.category];
   const main = goals.find((g) => g.isMain);
-  const subscores = useMemo(() => computeSubscores(today.metrics), [today]);
-  const [session, setSession] = useState<SessionSuggestion | null>(null);
-  const [loadingSession, setLoadingSession] = useState(false);
-
-  type ChatMsg = { role: "user" | "coach"; content: string };
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [input, setInput] = useState("");
-
-  function proposeSession() {
-    setLoadingSession(true);
-    setTimeout(() => {
-      setSession(suggestSession(today));
-      setLoadingSession(false);
-    }, 600);
-  }
-
-  function send() {
-    const q = input.trim();
-    if (!q) return;
-    const reply = coachReply(q, today);
-    setMessages((m) => [
-      ...m,
-      { role: "user", content: q },
-      { role: "coach", content: reply },
-    ]);
-    setInput("");
-  }
+  const subscores = computeSubscores(today.metrics);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full flex-col gap-2.5">
       <div
         style={{
           background: c.bg,
           border: `1px solid ${c.border}`,
           borderRadius: "var(--radius-lg)",
-          padding: "1.25rem",
+          padding: "0.85rem",
         }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CategoryDot category={today.category} size={16} />
-            <span style={{ color: c.text, fontWeight: 700, fontSize: "1.2rem" }}>
+            <CategoryDot category={today.category} size={14} />
+            <span style={{ color: c.text, fontWeight: 700, fontSize: "1.1rem" }}>
               {c.label}
             </span>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <span
-              style={{ color: c.text, fontWeight: 700, fontSize: "1.6rem" }}
-            >
+          <div>
+            <span style={{ color: c.text, fontWeight: 700, fontSize: "1.4rem" }}>
               {today.score}
             </span>
-            <span style={{ color: c.text, opacity: 0.7 }}>/100</span>
+            <span style={{ color: c.text, opacity: 0.7, fontSize: "0.85rem" }}>
+              /100
+            </span>
           </div>
         </div>
-        <p style={{ color: c.text, marginTop: "0.75rem", fontWeight: 600 }}>
+        <p style={{ color: c.text, marginTop: "0.5rem", fontWeight: 600, fontSize: "0.9rem", lineHeight: 1.35 }}>
           {c.advice}
         </p>
-        <p
-          style={{
-            color: c.text,
-            opacity: 0.85,
-            marginTop: "0.35rem",
-            fontSize: "0.85rem",
-          }}
-        >
+        <p style={{ color: c.text, opacity: 0.85, marginTop: "0.2rem", fontSize: "0.78rem" }}>
           Ramme: {c.limit}
+          {main ? ` · ${daysUntil(main.eventDate)} d til ${main.title}` : ""}
         </p>
-        {main && (
-          <p
-            style={{
-              color: c.text,
-              opacity: 0.7,
-              marginTop: "0.5rem",
-              fontSize: "0.78rem",
-            }}
-          >
-            {daysUntil(main.eventDate)} dager til {main.title} ·{" "}
-            {formatDuration(main.targetTimeS)}
-          </p>
-        )}
       </div>
 
       {today.triggers.length > 0 && (
-        <div>
-          <SectionTitle>Utløste regler</SectionTitle>
-          <div className="flex flex-col gap-2">
-            {today.triggers.map((t, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-2"
-                style={{
-                  background: CATEGORIES[t.forces].bg,
-                  border: `1px solid ${CATEGORIES[t.forces].border}`,
-                  borderRadius: "var(--radius-md)",
-                  padding: "0.6rem 0.75rem",
-                }}
-              >
-                <i
-                  className="bx bx-error-circle"
-                  aria-hidden="true"
-                  style={{ color: CATEGORIES[t.forces].text, marginTop: 2 }}
-                />
-                <span
-                  style={{
-                    color: CATEGORIES[t.forces].text,
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  {t.reason}
-                </span>
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-col gap-1.5">
+          {today.triggers.map((t, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-2"
+              style={{
+                background: CATEGORIES[t.forces].bg,
+                border: `1px solid ${CATEGORIES[t.forces].border}`,
+                borderRadius: "var(--radius-md)",
+                padding: "0.5rem 0.65rem",
+              }}
+            >
+              <i className="bx bx-error-circle" aria-hidden="true" style={{ color: CATEGORIES[t.forces].text, marginTop: 1, fontSize: "0.95rem" }} />
+              <span style={{ color: CATEGORIES[t.forces].text, fontSize: "0.78rem", lineHeight: 1.3 }}>
+                {t.reason}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
-      <div>
-        <SectionTitle>Dagens målinger</SectionTitle>
-        <div className="grid grid-cols-2 gap-3">
-          {METRIC_ORDER.map((key) => {
-            const meta = METRIC_META[key];
-            const subscore = subscores[key];
-            return (
-              <Card key={key} style={{ padding: "0.75rem" }}>
-                <p style={{ fontSize: "0.72rem", color: "var(--gray-500)" }}>
-                  {meta.label}
-                </p>
-                <p
-                  style={{
-                    fontSize: "1.15rem",
-                    fontWeight: 700,
-                    marginTop: "0.15rem",
-                  }}
-                >
-                  {metricValueText(key, today.metrics[key])}
-                  {meta.unit && (
-                    <span
-                      style={{
-                        fontSize: "0.7rem",
-                        color: "var(--gray-400)",
-                        fontWeight: 500,
-                        marginLeft: 3,
-                      }}
-                    >
-                      {meta.unit}
-                    </span>
-                  )}
-                </p>
-                <div style={{ marginTop: "0.5rem" }}>
-                  <ScoreBar value={subscore} />
-                </div>
-                <p
-                  style={{
-                    fontSize: "0.66rem",
-                    color: "var(--gray-400)",
-                    marginTop: "0.3rem",
-                  }}
-                >
-                  delskår {Math.round(subscore)}
-                </p>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      <div>
-        <SectionTitle>Øktforslag</SectionTitle>
-        <Card>
-          {session ? (
-            <div className="flex flex-col gap-3">
-              <SessionPart label="Oppvarming" text={session.warmup} />
-              <SessionPart label="Hoveddel" text={session.main} />
-              <SessionPart label="Avslutning" text={session.cooldown} />
-              <p style={{ fontSize: "0.72rem", color: "var(--gray-400)" }}>
-                Innenfor ramme: {c.limit.toLowerCase()}.
-              </p>
-            </div>
-          ) : (
-            <p style={{ color: "var(--gray-500)", fontSize: "0.9rem" }}>
-              Be om et konkret øktforslag innenfor dagens ramme.
-            </p>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary mt-3 w-full"
-            onClick={proposeSession}
-            disabled={loadingSession}
-          >
-            {loadingSession ? "Tenker…" : "Foreslå økt"}
-          </button>
-        </Card>
-      </div>
-
-      <div>
-        <SectionTitle>Spør coachen</SectionTitle>
-        <Card>
-          <div className="flex flex-col gap-2" style={{ marginBottom: "0.75rem" }}>
-            {messages.length === 0 && (
-              <p style={{ color: "var(--gray-400)", fontSize: "0.85rem" }}>
-                Still et spørsmål om dagens økt.
-              </p>
-            )}
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                style={{
-                  alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                  maxWidth: "85%",
-                  background:
-                    m.role === "user" ? "var(--blue-main)" : "var(--gray-100)",
-                  color: m.role === "user" ? "#fff" : "var(--gray-800)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "0.5rem 0.75rem",
-                  fontSize: "0.88rem",
-                }}
-              >
-                {m.content}
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              className="input"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="Kan jeg kjøre intervaller i dag?"
-            />
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={send}
-              aria-label="Send"
+      <div className="grid grid-cols-2 gap-2">
+        {METRIC_ORDER.map((key) => {
+          const meta = METRIC_META[key];
+          const subscore = subscores[key];
+          return (
+            <div
+              key={key}
+              className="panel"
+              style={{ borderRadius: "var(--radius-md)", padding: "0.5rem 0.6rem" }}
             >
-              <i className="bx bx-send" aria-hidden="true" />
-            </button>
-          </div>
-        </Card>
+              <div className="flex items-baseline justify-between">
+                <span style={{ fontSize: "0.66rem", color: "var(--gray-500)" }}>
+                  {meta.label}
+                </span>
+                <span style={{ fontSize: "0.58rem", color: "var(--gray-400)" }}>
+                  {Math.round(subscore)}
+                </span>
+              </div>
+              <p style={{ fontSize: "1rem", fontWeight: 700, lineHeight: 1.15 }}>
+                {metricValueText(key, today.metrics[key])}
+                {meta.unit && (
+                  <span style={{ fontSize: "0.62rem", color: "var(--gray-400)", fontWeight: 500, marginLeft: 3 }}>
+                    {meta.unit}
+                  </span>
+                )}
+              </p>
+              <div style={{ marginTop: "0.3rem" }}>
+                <ScoreBar value={subscore} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-auto grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() =>
+            sheet.openSheet("Øktforslag", <SessionSheet today={today} />)
+          }
+        >
+          Foreslå økt
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() =>
+            sheet.openSheet("Spør coachen", <ChatSheet today={today} />)
+          }
+        >
+          Spør coachen
+        </button>
       </div>
     </div>
   );
 }
 
-function SessionPart({ label, text }: { label: string; text: string }) {
+function SessionSheet({ today }: { today: DailyRecord }) {
+  const c = CATEGORIES[today.category];
+  const session = suggestSession(today);
+  const parts: [string, string][] = [
+    ["Oppvarming", session.warmup],
+    ["Hoveddel", session.main],
+    ["Avslutning", session.cooldown],
+  ];
   return (
-    <div>
-      <p
+    <div className="flex flex-col gap-3">
+      <div
         style={{
-          fontSize: "0.7rem",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          color: "var(--blue-main)",
-          fontWeight: 600,
+          background: c.bg,
+          border: `1px solid ${c.border}`,
+          borderRadius: "var(--radius-md)",
+          padding: "0.6rem 0.75rem",
         }}
       >
-        {label}
+        <span style={{ color: c.text, fontWeight: 600, fontSize: "0.85rem" }}>
+          {c.label} · {c.limit}
+        </span>
+      </div>
+      {parts.map(([label, text]) => (
+        <div key={label}>
+          <p style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--blue-main)", fontWeight: 600 }}>
+            {label}
+          </p>
+          <p style={{ fontSize: "0.9rem", color: "var(--gray-700)", marginTop: 2, lineHeight: 1.4 }}>
+            {text}
+          </p>
+        </div>
+      ))}
+      <p style={{ fontSize: "0.72rem", color: "var(--gray-400)" }}>
+        Generert lokalt innenfor dagens ramme. Gemini kobles på senere.
       </p>
-      <p style={{ fontSize: "0.9rem", color: "var(--gray-700)", marginTop: 2 }}>
-        {text}
-      </p>
+    </div>
+  );
+}
+
+function ChatSheet({ today }: { today: DailyRecord }) {
+  type ChatMsg = { role: "user" | "coach"; content: string };
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+
+  function send() {
+    const q = input.trim();
+    if (!q) return;
+    setMessages((m) => [
+      ...m,
+      { role: "user", content: q },
+      { role: "coach", content: coachReply(q, today) },
+    ]);
+    setInput("");
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2" style={{ minHeight: 120 }}>
+        {messages.length === 0 && (
+          <p style={{ color: "var(--gray-400)", fontSize: "0.85rem" }}>
+            Still et spørsmål om dagens økt.
+          </p>
+        )}
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+              maxWidth: "85%",
+              background: m.role === "user" ? "var(--blue-main)" : "var(--gray-100)",
+              color: m.role === "user" ? "#fff" : "var(--gray-800)",
+              borderRadius: "var(--radius-md)",
+              padding: "0.45rem 0.7rem",
+              fontSize: "0.86rem",
+              lineHeight: 1.35,
+            }}
+          >
+            {m.content}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          className="input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          placeholder="Kan jeg kjøre intervaller i dag?"
+        />
+        <button type="button" className="btn btn-primary" onClick={send} aria-label="Send">
+          <i className="bx bx-send" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -876,18 +778,15 @@ function SessionPart({ label, text }: { label: string; text: string }) {
 
 export function TrendsScreen({ records }: { records: DailyRecord[] }) {
   const window = records.slice(-28);
-  const hrv = window.map((r) => r.metrics.hrv_z);
-  const rhr = window.map((r) => r.metrics.d_rhr);
-  const acwrSeries = window.map((r) => r.metrics.acwr);
-
   const last = window[window.length - 1]?.metrics;
 
   const trends = [
     {
       title: "HRV z-skår",
-      values: hrv,
+      values: window.map((r) => r.metrics.hrv_z),
       color: "#0A5EDC",
       current: formatSigned(last?.hrv_z ?? 0, 2),
+      overThreshold: false,
       note:
         (last?.hrv_z ?? 0) < -0.5
           ? "Under baseline — nervesystemet er belastet."
@@ -897,9 +796,10 @@ export function TrendsScreen({ records }: { records: DailyRecord[] }) {
     },
     {
       title: "ΔRHR (bpm)",
-      values: rhr,
+      values: window.map((r) => r.metrics.d_rhr),
       color: "#9747FF",
       current: formatSigned(last?.d_rhr ?? 0, 0),
+      overThreshold: false,
       note:
         (last?.d_rhr ?? 0) >= 3
           ? "Forhøyet hvilepuls — ufullstendig restitusjon."
@@ -907,10 +807,11 @@ export function TrendsScreen({ records }: { records: DailyRecord[] }) {
     },
     {
       title: "ACWR",
-      values: acwrSeries,
+      values: window.map((r) => r.metrics.acwr),
       color: "#002359",
       threshold: 1.5,
       current: formatNumber(last?.acwr ?? 0, 2),
+      overThreshold: (last?.acwr ?? 0) >= 1.5,
       note:
         (last?.acwr ?? 0) >= 1.5
           ? "Over 1,50 — høy skaderisiko, trapp ned."
@@ -921,43 +822,30 @@ export function TrendsScreen({ records }: { records: DailyRecord[] }) {
   ];
 
   return (
-    <div className="flex flex-col gap-4">
-      <p style={{ color: "var(--gray-500)", fontSize: "0.85rem" }}>
+    <div className="flex h-full flex-col gap-2.5">
+      <p style={{ color: "var(--gray-500)", fontSize: "0.8rem" }}>
         Siste {window.length} dager.
       </p>
       {trends.map((t) => (
-        <div key={t.title}>
+        <Card key={t.title} style={{ padding: "0.75rem", flex: 1, minHeight: 0 }}>
           <div className="flex items-center justify-between">
-            <SectionTitle>{t.title}</SectionTitle>
+            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--gray-600)" }}>
+              {t.title}
+            </span>
             <span
               style={{
                 fontWeight: 700,
-                color:
-                  t.threshold && (last?.acwr ?? 0) >= t.threshold
-                    ? "var(--error-600)"
-                    : t.color,
+                color: t.overThreshold ? "var(--error-600)" : t.color,
               }}
             >
               {t.current}
             </span>
           </div>
-          <Card>
-            <Sparkline
-              values={t.values}
-              color={t.color}
-              threshold={t.threshold}
-            />
-            <p
-              style={{
-                fontSize: "0.82rem",
-                color: "var(--gray-600)",
-                marginTop: "0.5rem",
-              }}
-            >
-              {t.note}
-            </p>
-          </Card>
-        </div>
+          <Sparkline values={t.values} color={t.color} threshold={t.threshold} height={40} />
+          <p style={{ fontSize: "0.76rem", color: "var(--gray-600)", marginTop: "0.35rem" }}>
+            {t.note}
+          </p>
+        </Card>
       ))}
     </div>
   );
@@ -965,71 +853,111 @@ export function TrendsScreen({ records }: { records: DailyRecord[] }) {
 
 /* ============================ Historikk ============================ */
 
-export function HistoryScreen({ records }: { records: DailyRecord[] }) {
-  const ordered = useMemo(() => [...records].reverse(), [records]);
-  const [expanded, setExpanded] = useState<string | null>(null);
-
+export function HistoryScreen({
+  records,
+  sheet,
+}: {
+  records: DailyRecord[];
+  sheet: SheetApi;
+}) {
   return (
-    <div className="flex flex-col gap-2">
-      {ordered.map((r) => {
-        const c = CATEGORIES[r.category];
-        const open = expanded === r.date;
-        return (
-          <Card key={r.date} style={{ padding: 0 }}>
+    <div className="flex h-full flex-col gap-2.5">
+      <p style={{ color: "var(--gray-500)", fontSize: "0.8rem" }}>
+        Siste {records.length} dager. Trykk på en dag for detaljer.
+      </p>
+      <div
+        className="grid flex-1"
+        style={{
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 5,
+          alignContent: "start",
+        }}
+      >
+        {records.map((r) => {
+          const c = CATEGORIES[r.category];
+          const day = new Date(`${r.date}T00:00:00`).getDate();
+          return (
             <button
+              key={r.date}
               type="button"
-              className="flex w-full items-center justify-between"
-              style={{ padding: "0.85rem 1rem", textAlign: "left" }}
-              onClick={() => setExpanded(open ? null : r.date)}
+              onClick={() => sheet.openSheet(formatDate(r.date), <HistoryDetail record={r} />)}
+              className="flex flex-col items-center justify-center"
+              style={{
+                aspectRatio: "1",
+                background: c.bg,
+                border: `1px solid ${c.border}`,
+                borderRadius: "var(--radius-sm)",
+                color: c.text,
+              }}
             >
-              <div className="flex items-center gap-3">
-                <CategoryDot category={r.category} />
-                <div>
-                  <p style={{ fontWeight: 600, fontSize: "0.92rem" }}>
-                    {formatShortDay(r.date)}
-                  </p>
-                  <p style={{ fontSize: "0.76rem", color: "var(--gray-500)" }}>
-                    {r.completed ?? "ingen økt"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span style={{ fontWeight: 700, color: c.text }}>{r.score}</span>
-                <i
-                  className={open ? "bx bx-chevron-up" : "bx bx-chevron-down"}
-                  aria-hidden="true"
-                  style={{ color: "var(--gray-400)" }}
-                />
-              </div>
+              <span style={{ fontSize: "0.56rem", opacity: 0.8 }}>{day}.</span>
+              <span style={{ fontSize: "0.92rem", fontWeight: 700, lineHeight: 1 }}>
+                {r.score}
+              </span>
             </button>
-            {open && (
-              <div
-                className="grid grid-cols-2 gap-x-4 gap-y-1"
-                style={{
-                  padding: "0 1rem 0.85rem",
-                  borderTop: "1px solid var(--border)",
-                  paddingTop: "0.75rem",
-                }}
-              >
-                {METRIC_ORDER.map((key) => (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between"
-                    style={{ fontSize: "0.82rem" }}
-                  >
-                    <span style={{ color: "var(--gray-500)" }}>
-                      {METRIC_META[key].label}
-                    </span>
-                    <span style={{ fontWeight: 600 }}>
-                      {metricValueText(key, r.metrics[key])}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        );
-      })}
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1" style={{ fontSize: "0.66rem", color: "var(--gray-500)" }}>
+        {(["green", "yellow", "yellow_caution", "red2"] as const).map((k) => (
+          <span key={k} className="flex items-center gap-1">
+            <CategoryDot category={k} size={7} /> {CATEGORIES[k].label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HistoryDetail({ record }: { record: DailyRecord }) {
+  const c = CATEGORIES[record.category];
+  return (
+    <div className="flex flex-col gap-3">
+      <div
+        style={{
+          background: c.bg,
+          border: `1px solid ${c.border}`,
+          borderRadius: "var(--radius-md)",
+          padding: "0.7rem 0.8rem",
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <span style={{ color: c.text, fontWeight: 700 }}>{c.label}</span>
+          <span style={{ color: c.text, fontWeight: 700 }}>{record.score}/100</span>
+        </div>
+        <p style={{ color: c.text, fontSize: "0.8rem", marginTop: 2 }}>
+          {record.completed ?? "Ingen økt gjennomført"}
+        </p>
+      </div>
+      <div className="flex flex-col">
+        {METRIC_ORDER.map((key, i) => (
+          <div
+            key={key}
+            className="flex items-center justify-between"
+            style={{
+              padding: "0.45rem 0",
+              borderBottom:
+                i < METRIC_ORDER.length - 1 ? "1px solid var(--border)" : "none",
+              fontSize: "0.86rem",
+            }}
+          >
+            <span style={{ color: "var(--gray-600)" }}>{METRIC_META[key].label}</span>
+            <span style={{ fontWeight: 600 }}>
+              {metricValueText(key, record.metrics[key])}
+              {METRIC_META[key].unit ? ` ${METRIC_META[key].unit}` : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+      {record.triggers.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {record.triggers.map((t, i) => (
+            <p key={i} style={{ fontSize: "0.76rem", color: CATEGORIES[t.forces].text }}>
+              {t.reason}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

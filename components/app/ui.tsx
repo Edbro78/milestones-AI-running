@@ -216,3 +216,109 @@ export function StatRow({
 export function scoreText(n: number) {
   return formatNumber(n, 0);
 }
+
+/**
+ * Bunnark (overlay) som legger seg over telefonskjermen. Brukes til
+ * sekundært innhold (øktforslag, chat, skjema, detaljer) slik at
+ * hovedskjermene slipper å scrolle. Arket har egen indre scroll.
+ */
+export function BottomSheet({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 50,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+      }}
+    >
+      <div
+        onClick={onClose}
+        style={{ position: "absolute", inset: 0, background: "rgba(16,24,40,0.45)" }}
+      />
+      <div
+        style={{
+          position: "relative",
+          background: "var(--white)",
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          maxHeight: "86%",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "var(--shadow-xl)",
+          animation: "sheet-up 0.2s ease-out",
+        }}
+      >
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: "0.75rem 1rem",
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
+          <span style={{ fontWeight: 700, color: "var(--sp-navy)" }}>{title}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Lukk"
+            style={{ color: "var(--gray-500)", padding: 4 }}
+          >
+            <i className="bx bx-x" aria-hidden="true" style={{ fontSize: "1.4rem" }} />
+          </button>
+        </div>
+        <div
+          style={{
+            overflowY: "auto",
+            padding: "1rem",
+            paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Liten nøkkeltall-boks. */
+export function MiniStat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: React.ReactNode;
+  color?: string;
+}) {
+  return (
+    <div
+      className="panel"
+      style={{ borderRadius: "var(--radius-md)", padding: "0.55rem 0.6rem" }}
+    >
+      <p style={{ fontSize: "0.62rem", color: "var(--gray-500)" }}>{label}</p>
+      <p
+        style={{
+          fontSize: "1.25rem",
+          fontWeight: 700,
+          color: color ?? "var(--sp-navy)",
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}

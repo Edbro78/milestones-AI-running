@@ -240,6 +240,28 @@ body {
   min-height: 100%;
 }
 
+/* App-flaten fyller telefonen nøyaktig — ingen ytre scroll av fanene */
+.app-fixed {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.device-scroll .app-fixed {
+  height: 100%;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* På en ekte telefon: fjern rammen og fyll skjermen */
 @media (max-width: 500px) {
   .device-viewport {
@@ -278,6 +300,10 @@ body {
 
   .device-scroll .app-min-h {
     min-height: 100dvh;
+  }
+
+  .device-scroll .app-fixed {
+    height: 100dvh;
   }
 }
 
