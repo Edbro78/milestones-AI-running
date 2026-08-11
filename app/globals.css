@@ -23,14 +23,130 @@
   --font-display: var(--font-display);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
+  /* Nøytral "studio"-bakgrunn bak telefonen */
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(196, 240, 77, 0.06), transparent 60%),
+    linear-gradient(180deg, #10151a 0%, #0b0f13 100%);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Selve app-flaten (den lyse bakgrunnen som lå på body før) */
+.app-surface {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(196, 240, 77, 0.28), transparent 55%),
     radial-gradient(900px 500px at 100% 0%, rgba(15, 61, 46, 0.18), transparent 50%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
-  color: var(--ink);
-  font-family: var(--font-body), system-ui, sans-serif;
-  min-height: 100vh;
+}
+
+/* ==== Telefon-ramme: viser appen som en iPhone i preview ==== */
+.device-viewport {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.device {
+  position: relative;
+  height: min(880px, calc(100dvh - 32px));
+  aspect-ratio: 402 / 874;
+  padding: 12px;
+  background: #0a0a0c;
+  border-radius: 3.3rem;
+  box-shadow:
+    0 50px 120px rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.06),
+    inset 0 0 0 8px #000;
+}
+
+.device-screen {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  border-radius: 2.5rem;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.device-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.device-island {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 33%;
+  height: 27px;
+  background: #000;
+  border-radius: 999px;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* Høyde som fyller telefon-skjermen (i stedet for hele nettleser-viewporten) */
+.app-min-h {
+  min-height: 100dvh;
+}
+
+.device-scroll .app-min-h {
+  min-height: 100%;
+}
+
+/* På en ekte telefon: fjern rammen og fyll skjermen */
+@media (max-width: 500px) {
+  .device-viewport {
+    display: block;
+    min-height: 100dvh;
+    padding: 0;
+  }
+
+  .device {
+    height: auto;
+    min-height: 100dvh;
+    aspect-ratio: auto;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .device-screen {
+    height: auto;
+    min-height: 100dvh;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .device-scroll {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .device-island {
+    display: none;
+  }
+
+  .device-scroll .app-min-h {
+    min-height: 100dvh;
+  }
 }
 
 h1,
@@ -57,10 +173,13 @@ a {
   width: 100%;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.85);
-  padding: 0.75rem 0.9rem;
+  padding: 0.85rem 0.9rem;
   border-radius: 0.4rem;
   color: var(--ink);
   outline: none;
+  /* 16px hindrer at iOS zoomer inn når feltet får fokus */
+  font-size: 16px;
+  min-height: 44px;
 }
 
 .input:focus {
@@ -75,13 +194,19 @@ a {
   gap: 0.4rem;
   border-radius: 999px;
   padding: 0.7rem 1.2rem;
+  min-height: 44px;
   font-weight: 600;
+  font-size: 1rem;
   border: 1px solid transparent;
+  cursor: pointer;
+  touch-action: manipulation;
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.btn:hover {
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .btn:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .btn-primary {
@@ -105,6 +230,22 @@ a {
   font-weight: 600;
   color: var(--ink-muted);
   margin-bottom: 0.35rem;
+}
+
+/* Respekterer iPhone-notch / Dynamic Island / home-indikator */
+.safe-area {
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.safe-top {
+  top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-right {
+  right: max(1rem, env(safe-area-inset-right));
 }
 
 /* Startside */

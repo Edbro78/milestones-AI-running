@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -16,11 +17,9 @@ export function LoginForm() {
     setMessage(null);
 
     try {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (!url || !key) {
+      if (!getSupabaseUrl() || !getSupabaseAnonKey()) {
         throw new Error(
-          "Supabase er ikke konfigurert i Vercel (NEXT_PUBLIC_SUPABASE_URL / ANON_KEY).",
+          "Supabase er ikke konfigurert (NEXT_PUBLIC_SUPABASE_URL / ANON_KEY).",
         );
       }
 
@@ -59,8 +58,23 @@ export function LoginForm() {
     }
   }
 
+  function switchMode(next: "login" | "signup") {
+    setMode(next);
+    setMessage(null);
+  }
+
   return (
-    <form onSubmit={onSubmit} className="panel mx-auto w-full max-w-md rounded-2xl p-8">
+    <form
+      onSubmit={onSubmit}
+      className="panel mx-auto w-full max-w-md rounded-3xl p-6 sm:p-8"
+    >
+      <a
+        href="/"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--ink-muted)]"
+      >
+        <span aria-hidden="true">←</span> Tilbake
+      </a>
+
       <h1 className="font-display text-4xl text-[var(--brand)]">Milestones</h1>
       <p className="mt-1 text-sm uppercase tracking-[0.2em] text-[var(--ink-muted)]">
         AI Running
@@ -69,7 +83,40 @@ export function LoginForm() {
         Personlig løpetrener med Garmin + Gemini.
       </p>
 
-      <div className="mt-8 space-y-4">
+      <div
+        role="tablist"
+        aria-label="Velg innlogging eller registrering"
+        className="mt-7 grid grid-cols-2 gap-1 rounded-full border border-[var(--line)] bg-white/50 p-1"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "login"}
+          onClick={() => switchMode("login")}
+          className={`min-h-11 rounded-full text-sm font-semibold transition ${
+            mode === "login"
+              ? "bg-[var(--brand)] text-[#f4ffe8] shadow"
+              : "text-[var(--ink-muted)]"
+          }`}
+        >
+          Logg inn
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "signup"}
+          onClick={() => switchMode("signup")}
+          className={`min-h-11 rounded-full text-sm font-semibold transition ${
+            mode === "signup"
+              ? "bg-[var(--brand)] text-[#f4ffe8] shadow"
+              : "text-[var(--ink-muted)]"
+          }`}
+        >
+          Opprett konto
+        </button>
+      </div>
+
+      <div className="mt-6 space-y-4">
         <div>
           <label className="label" htmlFor="email">
             E-post
@@ -78,6 +125,7 @@ export function LoginForm() {
             id="email"
             className="input"
             type="email"
+            inputMode="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -101,21 +149,14 @@ export function LoginForm() {
         </div>
       </div>
 
-      {message ? <p className="mt-4 text-sm text-[var(--ink-muted)]">{message}</p> : null}
+      {message ? (
+        <p className="mt-4 rounded-xl bg-white/50 p-3 text-sm text-[var(--ink-muted)]">
+          {message}
+        </p>
+      ) : null}
 
       <button type="submit" className="btn btn-primary mt-6 w-full" disabled={loading}>
         {loading ? "Vent…" : mode === "login" ? "Logg inn" : "Opprett konto"}
-      </button>
-
-      <button
-        type="button"
-        className="mt-4 w-full text-sm text-[var(--ink-muted)] underline"
-        onClick={() => {
-          setMode(mode === "login" ? "signup" : "login");
-          setMessage(null);
-        }}
-      >
-        {mode === "login" ? "Ny her? Opprett konto" : "Har konto? Logg inn"}
       </button>
     </form>
   );
