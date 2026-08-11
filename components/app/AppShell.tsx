@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import { getMockRecords, MOCK_GOALS, MOCK_PROFILE } from "@/lib/mockData";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { MOCK_GOALS, MOCK_PROFILE } from "@/lib/mockData";
+import type { DailyRecord } from "@/lib/types";
 import { BottomSheet } from "@/components/app/ui";
 import {
   GoalsScreen,
@@ -37,13 +38,73 @@ export type SheetApi = {
   closeSheet: () => void;
 };
 
+export type GarminStatus = {
+  connected: boolean;
+  mock: boolean;
+  lastSync: string | null;
+  error: string | null;
+  loading: boolean;
+};
+
 export function AppShell({ userEmail }: { userEmail: string }) {
   const [tab, setTab] = useState<TabKey>("okt");
   const [sheet, setSheet] = useState<{ title: string; node: ReactNode } | null>(
     null,
   );
-  const records = useMemo(() => getMockRecords(28), []);
-  const today = records[records.length - 1];
+  const [records, setRecords] = useState<DailyRecord[]>([]);
+  const [garmin, setGarmin] = useState<GarminStatus>({
+    connected: false,
+    mock: false,
+    lastSync: null,
+    error: null,
+    loading: true,
+  });
+
+  const syncGarmin = useCallback(async () => {
+    setGarmin((g) => ({ ...g, loading: true, error: null }));
+    try {
+      const res = await fetch("/api/garmin/sync?days=28");
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setGarmin({
+          connected: false,
+          mock: Boolean(data.mock),
+          lastSync: null,
+          error: data.error || data.message || "Kunne ikke synkronisere Garmin",
+          loading: false,
+        });
+        // Behold eksisterende records hvis vi har noen; ellers tom
+        if (!records.length && data.records?.length) {
+          setRecords(data.records);
+        }
+        return;
+      }
+      setRecords(data.records ?? []);
+      setGarmin({
+        connected: Boolean(data.connected),
+        mock: Boolean(data.mock),
+        lastSync: data.lastSync ?? null,
+        error: data.message ?? null,
+        loading: false,
+      });
+    } catch (err) {
+      setGarmin({
+        connected: false,
+        mock: false,
+        lastSync: null,
+        error: err instanceof Error ? err.message : "Nettverksfeil mot Garmin",
+        loading: false,
+      });
+    }
+  }, [records.length]);
+
+  useEffect(() => {
+    void syncGarmin();
+    // Kun ved mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const today = records[records.length - 1] ?? null;
 
   const sheetApi: SheetApi = {
     openSheet: (title, node) => setSheet({ title, node }),
@@ -96,23 +157,51 @@ export function AppShell({ userEmail }: { userEmail: string }) {
         </form>
       </header>
 
-      <main
-        className="flex-1"
-        style={{ padding: "0.75rem", overflow: "hidden" }}
-      >
-        {tab === "profil" && (
-          <ProfileScreen profile={MOCK_PROFILE} lastSync={new Date().toISOString()} />
-        )}
-        {tab === "rapport" && <ReportScreen records={records} />}
-        {tab === "mal" && (
-          <GoalsScreen goals={MOCK_GOALS} records={records} sheet={sheetApi} />
-        )}
-        {tab === "okt" && (
-          <TodayScreen today={today} goals={MOCK_GOALS} sheet={sheetApi} />
-        )}
-        {tab === "trender" && <TrendsScreen records={records} />}
-        {tab === "historikk" && (
-          <HistoryScreen records={records} sheet={sheetApi} />
+      <main className="flex-1" style={{ padding: "0.75rem", overflow: "hidden" }}>
+        {garmin.loading && records.length === 0 ? (
+          <div
+            className="flex h-full items-center justify-center"
+            style={{ color: "var(--gray-500)", fontSize: "0.9rem" }}
+          >
+            Henter Garmin-data…
+          </div>
+        ) : (
+          <>
+            {tab === "profil" && (
+              <ProfileScreen
+                profile={MOCK_PROFILE}
+                garmin={garmin}
+                onSync={syncGarmin}
+              />
+            )}
+            {tab === "rapport" &&
+              (records.length ? (
+                <ReportScreen records={records} />
+              ) : (
+                <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
+              ))}
+            {tab === "mal" && (
+              <GoalsScreen goals={MOCK_GOALS} records={records} sheet={sheetApi} />
+            )}
+            {tab === "okt" &&
+              (today ? (
+                <TodayScreen today={today} goals={MOCK_GOALS} sheet={sheetApi} />
+              ) : (
+                <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
+              ))}
+            {tab === "trender" &&
+              (records.length ? (
+                <TrendsScreen records={records} />
+              ) : (
+                <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
+              ))}
+            {tab === "historikk" &&
+              (records.length ? (
+                <HistoryScreen records={records} sheet={sheetApi} />
+              ) : (
+                <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
+              ))}
+          </>
         )}
       </main>
 
@@ -157,6 +246,39 @@ export function AppShell({ userEmail }: { userEmail: string }) {
       >
         {sheet?.node}
       </BottomSheet>
+    </div>
+  );
+}
+
+function EmptyGarmin({
+  garmin,
+  onSync,
+}: {
+  garmin: GarminStatus;
+  onSync: () => Promise<void>;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+      <i
+        className="bx bx-link-alt"
+        aria-hidden="true"
+        style={{ fontSize: "2rem", color: "var(--gray-400)" }}
+      />
+      <p style={{ fontWeight: 600, color: "var(--sp-navy)" }}>
+        Ingen Garmin-data ennå
+      </p>
+      <p style={{ fontSize: "0.85rem", color: "var(--gray-500)", lineHeight: 1.4 }}>
+        {garmin.error ||
+          "Koble til Garmin Connect for å hente dagens målinger og historikk."}
+      </p>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => void onSync()}
+        disabled={garmin.loading}
+      >
+        {garmin.loading ? "Synkroniserer…" : "Koble til / synkroniser"}
+      </button>
     </div>
   );
 }

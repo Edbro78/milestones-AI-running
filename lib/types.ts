@@ -67,3 +67,40 @@ export type DailyRecord = {
   /** Gjennomført økt (fritekst), null hvis ingen. */
   completed?: string | null;
 };
+
+/* ---- Typer brukt av eksisterende Garmin-klient (garmin-connect) ---- */
+
+export type Trafikklys = "grønt" | "gult" | "rødt";
+
+export interface GarminSnapshot {
+  date: string;
+  hrv?: number | null;
+  hrv_7d_avg?: number | null;
+  resting_hr?: number | null;
+  resting_hr_7d_avg?: number | null;
+  body_battery?: number | null;
+  sleep_hours?: number | null;
+  sleep_score?: number | null;
+  training_readiness?: number | null;
+  stress?: number | null;
+  training_load?: number | null;
+  notes?: string[];
+  raw?: Record<string, unknown>;
+}
+
+export interface TrafficLightResult {
+  trafikklys: Trafikklys;
+  begrunnelse: string;
+  triggers: string[];
+}
+
+export interface DayMetrics {
+  date: string;
+  body_battery: number | null;
+  sleep_score: number | null;
+  hrv: number | null;
+  distance_km: number;
+  steps: number | null;
+  floors: number | null;
+  trafikklys: Trafikklys;
+}

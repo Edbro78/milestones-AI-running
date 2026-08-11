@@ -16,7 +16,7 @@ import { predictFinishSeconds } from "@/lib/prognosis";
 import { computeSubscores } from "@/lib/trafficLight";
 import type { Profile, Goal } from "@/lib/mockData";
 import type { DailyRecord, MetricKey } from "@/lib/types";
-import type { SheetApi } from "@/components/app/AppShell";
+import type { SheetApi, GarminStatus } from "@/components/app/AppShell";
 import {
   Card,
   CategoryDot,
@@ -37,23 +37,15 @@ function metricValueText(key: MetricKey, value: number): string {
 
 export function ProfileScreen({
   profile,
-  lastSync,
+  garmin,
+  onSync,
 }: {
   profile: Profile;
-  lastSync: string | null;
+  garmin: GarminStatus;
+  onSync: () => Promise<void>;
 }) {
   const age =
     new Date().getFullYear() - new Date(profile.birthDate).getFullYear();
-  const [syncing, setSyncing] = useState(false);
-  const [syncedAt, setSyncedAt] = useState<string | null>(lastSync);
-
-  function sync() {
-    setSyncing(true);
-    setTimeout(() => {
-      setSyncedAt(new Date().toISOString());
-      setSyncing(false);
-    }, 800);
-  }
 
   const rows: [string, string][] = [
     ["Alder", `${age} år`],
@@ -64,6 +56,20 @@ export function ProfileScreen({
     ["Hvilepuls-baseline", `${profile.rhrBaseline} bpm`],
     ["Ukentlig volum", `${formatNumber(profile.weeklyKm)} km`],
   ];
+
+  const statusLabel = garmin.loading
+    ? "Synkroniserer…"
+    : garmin.connected
+      ? "Garmin tilkoblet"
+      : garmin.mock
+        ? "Demodata (ikke live)"
+        : "Ikke tilkoblet";
+
+  const statusColor = garmin.connected
+    ? "var(--success-500)"
+    : garmin.mock
+      ? "var(--warning-500)"
+      : "var(--error-500)";
 
   return (
     <div className="flex h-full flex-col gap-2.5">
@@ -112,24 +118,31 @@ export function ProfileScreen({
       </Card>
 
       <Card style={{ padding: "0.75rem" }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <span
               style={{
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                background: "var(--success-500)",
+                background: statusColor,
                 display: "inline-block",
+                flex: "none",
               }}
             />
             <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-              Garmin tilkoblet
+              {statusLabel}
             </span>
           </div>
-          <span style={{ color: "var(--gray-500)", fontSize: "0.72rem" }}>
-            {syncedAt
-              ? `Synk ${new Date(syncedAt).toLocaleString("nb-NO", {
+          <span
+            style={{
+              color: "var(--gray-500)",
+              fontSize: "0.72rem",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {garmin.lastSync
+              ? `Synk ${new Date(garmin.lastSync).toLocaleString("nb-NO", {
                   day: "2-digit",
                   month: "2-digit",
                   hour: "2-digit",
@@ -138,13 +151,29 @@ export function ProfileScreen({
               : "Ikke synkronisert"}
           </span>
         </div>
+        {garmin.error ? (
+          <p
+            style={{
+              marginTop: "0.5rem",
+              fontSize: "0.78rem",
+              color: "var(--error-700)",
+              lineHeight: 1.35,
+            }}
+          >
+            {garmin.error}
+          </p>
+        ) : null}
         <button
           type="button"
-          className="btn btn-ghost mt-2.5 w-full"
-          onClick={sync}
-          disabled={syncing}
+          className="btn btn-primary mt-2.5 w-full"
+          onClick={() => void onSync()}
+          disabled={garmin.loading}
         >
-          {syncing ? "Synkroniserer…" : "Synkroniser"}
+          {garmin.loading
+            ? "Synkroniserer…"
+            : garmin.connected
+              ? "Synkroniser"
+              : "Koble til / synkroniser"}
         </button>
       </Card>
     </div>

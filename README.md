@@ -60,10 +60,13 @@ dekket av Vitest-tester (`npm run test`).
 
 ## Garmin
 
-All Garmin-logikk ligger bak `GarminProvider`. Sett `GARMIN_MOCK=true` for å
-bruke `MockGarminProvider` slik at hele appen kan utvikles og demoes uten
-Garmin-godkjenning. Live-integrasjon (Health API, OAuth, webhooks) kobles på til
-slutt via route handlers under `/api/garmin/*`.
+Appen bruker den eksisterende `garmin-connect`-klienten i `lib/garmin/client.ts`
+(e-post/passord + tokens lagret i Supabase `garmin_tokens`). Sett `GARMIN_EMAIL`
+og `GARMIN_PASSWORD` i miljøvariablene. Synkronisering skjer via
+`/api/garmin/sync`.
+
+`GARMIN_MOCK=true` er kun for demodata i utvikling — da markeres status eksplisitt
+som demodata, ikke som «tilkoblet».
 
 ## Gemini (kommer)
 
