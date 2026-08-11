@@ -32,6 +32,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="nb" className={`${hanken.variable} h-full antialiased`}>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+        />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
       <body className="min-h-full">
         <div className="device-viewport">
           <div className="device">

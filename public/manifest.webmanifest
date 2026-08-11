@@ -1,0 +1,18 @@
+{
+  "name": "Milestones AI Running",
+  "short_name": "Milestones",
+  "description": "Personlig løpetrener med Garmin og Gemini",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#002359",
+  "theme_color": "#002359",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
