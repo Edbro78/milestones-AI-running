@@ -30,7 +30,7 @@ export function LoginForm() {
         if (error) {
           if (error.message.toLowerCase().includes("invalid login")) {
             throw new Error(
-              "Feil e-post/passord, eller konto finnes ikke. Prøv «Opprett konto» først.",
+              "Feil e-post eller passord, eller kontoen finnes ikke. Prøv «Opprett konto» først.",
             );
           }
           throw error;
@@ -48,7 +48,7 @@ export function LoginForm() {
       }
 
       setMessage(
-        "Konto opprettet. Hvis e-postbekreftelse er på i Supabase, sjekk innboksen. Ellers kan du logge inn nå.",
+        "Kontoen er opprettet. Er e-postbekreftelse på i Supabase, sjekk innboksen. Ellers kan du logge inn nå.",
       );
       setMode("login");
     } catch (err) {
@@ -63,41 +63,47 @@ export function LoginForm() {
     setMessage(null);
   }
 
+  const tabBase =
+    "h-10 rounded-md text-sm font-semibold transition";
+  const tabActive = { background: "var(--white)", color: "var(--sp-navy)", boxShadow: "var(--shadow-sm)" };
+  const tabIdle = { background: "transparent", color: "var(--gray-500)" };
+
   return (
     <form
       onSubmit={onSubmit}
-      className="panel mx-auto w-full max-w-md rounded-3xl p-6 sm:p-8"
+      className="panel mx-auto w-full max-w-md p-6 sm:p-8"
+      style={{ borderRadius: "var(--radius-lg)" }}
     >
       <a
         href="/"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--ink-muted)]"
+        className="mb-6 inline-flex items-center gap-1 text-sm font-medium"
+        style={{ color: "var(--gray-500)" }}
       >
         <span aria-hidden="true">←</span> Tilbake
       </a>
 
-      <h1 className="font-display text-4xl text-[var(--brand)]">Milestones</h1>
-      <p className="mt-1 text-sm uppercase tracking-[0.2em] text-[var(--ink-muted)]">
-        AI Running
-      </p>
-      <p className="mt-4 text-[var(--ink-muted)]">
-        Personlig løpetrener med Garmin + Gemini.
+      <h1 className="text-3xl" style={{ fontWeight: 500, color: "var(--sp-navy)" }}>
+        {mode === "login" ? "Logg inn" : "Opprett konto"}
+      </h1>
+      <p className="mt-1.5 text-[15px]" style={{ color: "var(--gray-500)" }}>
+        {mode === "login"
+          ? "Velkommen tilbake til Milestones."
+          : "Kom i gang med din personlige løpetrener."}
       </p>
 
       <div
         role="tablist"
         aria-label="Velg innlogging eller registrering"
-        className="mt-7 grid grid-cols-2 gap-1 rounded-full border border-[var(--line)] bg-white/50 p-1"
+        className="mt-6 grid grid-cols-2 gap-1 p-1"
+        style={{ background: "var(--gray-100)", borderRadius: "var(--radius-md)" }}
       >
         <button
           type="button"
           role="tab"
           aria-selected={mode === "login"}
           onClick={() => switchMode("login")}
-          className={`min-h-11 rounded-full text-sm font-semibold transition ${
-            mode === "login"
-              ? "bg-[var(--brand)] text-[#f4ffe8] shadow"
-              : "text-[var(--ink-muted)]"
-          }`}
+          className={tabBase}
+          style={mode === "login" ? tabActive : tabIdle}
         >
           Logg inn
         </button>
@@ -106,17 +112,14 @@ export function LoginForm() {
           role="tab"
           aria-selected={mode === "signup"}
           onClick={() => switchMode("signup")}
-          className={`min-h-11 rounded-full text-sm font-semibold transition ${
-            mode === "signup"
-              ? "bg-[var(--brand)] text-[#f4ffe8] shadow"
-              : "text-[var(--ink-muted)]"
-          }`}
+          className={tabBase}
+          style={mode === "signup" ? tabActive : tabIdle}
         >
           Opprett konto
         </button>
       </div>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 flex flex-col gap-4">
         <div>
           <label className="label" htmlFor="email">
             E-post
@@ -126,6 +129,7 @@ export function LoginForm() {
             className="input"
             type="email"
             inputMode="email"
+            placeholder="navn@firma.no"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -140,6 +144,7 @@ export function LoginForm() {
             id="password"
             className="input"
             type="password"
+            placeholder="••••••••"
             required
             minLength={6}
             value={password}
@@ -150,7 +155,15 @@ export function LoginForm() {
       </div>
 
       {message ? (
-        <p className="mt-4 rounded-xl bg-white/50 p-3 text-sm text-[var(--ink-muted)]">
+        <p
+          className="mt-4 p-3 text-sm"
+          style={{
+            background: "var(--blue-50)",
+            color: "var(--gray-700)",
+            border: "1px solid var(--blue-200)",
+            borderRadius: "var(--radius-md)",
+          }}
+        >
           {message}
         </p>
       ) : null}

@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#0a1f17" />
+    <meta name="theme-color" content="#002359" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Milestones AI Running</title>
@@ -17,15 +17,31 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <style>
       :root {
-        --brand: #0f3d2e;
-        --accent: #c4f04d;
-        --ink: #f4ffe8;
-        --muted: #d7e8db;
+        --sp-navy: #002359;
+        --sp-navy-pressed: #074eb9;
+        --blue-100: #eef5ff;
+        --blue-200: #e6effb;
+        --blue-main: #0a5edc;
+        --secondary-100: #eceff3;
+        --secondary-400: #a0aec4;
+        --gray-300: #d0d5dd;
+        --white: #ffffff;
+        --font-sans: "Hanken Grotesk", "Inter", system-ui, sans-serif;
+        --font-italic: "SoderbergSans", "Hanken Grotesk", serif;
+      }
+
+      /* SoderbergSans — klientens merkevare-italic, til editorial aksent */
+      @font-face {
+        font-family: "SoderbergSans";
+        src: url("/fonts/SoderbergSans-MediumItalic.otf") format("opentype");
+        font-weight: 500;
+        font-style: italic;
+        font-display: swap;
       }
 
       * {
@@ -43,28 +59,27 @@
       }
 
       body {
-        font-family: "Outfit", system-ui, sans-serif;
-        color: var(--ink);
-        /* Nøytral "studio"-bakgrunn bak telefonen */
-        background:
-          radial-gradient(1200px 800px at 50% -10%, rgba(196, 240, 77, 0.06), transparent 60%),
-          linear-gradient(180deg, #10151a 0%, #0b0f13 100%);
+        font-family: var(--font-sans);
+        color: var(--sp-navy);
+        background: var(--secondary-100);
         -webkit-tap-highlight-color: transparent;
+        -webkit-font-smoothing: antialiased;
       }
 
       /* ==== Telefon-ramme ==== */
       .device-viewport {
         min-height: 100dvh;
         display: flex;
-        align-items: center;
-        justify-content: center;
         padding: 16px;
+        overflow: auto;
       }
 
       .device {
         position: relative;
-        height: min(880px, calc(100dvh - 32px));
-        aspect-ratio: 402 / 874;
+        flex: none;
+        margin: auto;
+        width: 393px;
+        height: 852px;
         padding: 12px;
         background: #0a0a0c;
         border-radius: 3.3rem;
@@ -81,7 +96,7 @@
         width: 100%;
         border-radius: 2.5rem;
         overflow: hidden;
-        background: #0a1f17;
+        background: var(--sp-navy);
       }
 
       .device-scroll {
@@ -108,56 +123,24 @@
         position: relative;
         min-height: 100vh;
         min-height: 100dvh;
-        overflow: hidden;
+        background: var(--sp-navy);
+        color: #fff;
       }
 
       .device-scroll .shell {
         min-height: 100%;
       }
 
-      .bg {
-        position: absolute;
-        inset: 0;
-        background:
-          linear-gradient(
-            165deg,
-            rgba(15, 61, 46, 0.95) 0%,
-            rgba(20, 48, 36, 0.82) 42%,
-            rgba(196, 240, 77, 0.22) 100%
-          ),
-          radial-gradient(
-            ellipse 80% 60% at 70% 40%,
-            rgba(196, 240, 77, 0.18),
-            transparent 55%
-          );
-      }
-
-      .horizon {
-        position: absolute;
-        inset-inline: 0;
-        bottom: 0;
-        height: 42vh;
-        background:
-          linear-gradient(180deg, transparent 0%, rgba(8, 24, 18, 0.55) 100%),
-          repeating-linear-gradient(
-            -12deg,
-            transparent 0 18px,
-            rgba(196, 240, 77, 0.04) 18px 19px
-          );
-      }
-
       .content {
         position: relative;
         z-index: 1;
         width: 100%;
-        max-width: 72rem;
-        margin: 0 auto;
         min-height: 100vh;
         min-height: 100dvh;
-        padding: calc(1.1rem + env(safe-area-inset-top))
-          calc(1.25rem + env(safe-area-inset-right))
-          calc(1.25rem + env(safe-area-inset-bottom))
-          calc(1.25rem + env(safe-area-inset-left));
+        padding: calc(1.25rem + env(safe-area-inset-top))
+          calc(1.5rem + env(safe-area-inset-right))
+          calc(1.75rem + env(safe-area-inset-bottom))
+          calc(1.5rem + env(safe-area-inset-left));
         display: flex;
         flex-direction: column;
       }
@@ -171,51 +154,48 @@
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        animation: fade-in 0.8s ease both;
       }
 
       .brand {
-        font-family: "Fraunces", Georgia, serif;
-        font-size: clamp(1.35rem, 5vw, 1.9rem);
-        letter-spacing: -0.03em;
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
         margin: 0;
         line-height: 1;
       }
 
       .brand span {
         display: block;
-        margin-top: 0.15rem;
-        font-family: "Outfit", system-ui, sans-serif;
-        font-size: 0.68rem;
-        font-weight: 400;
-        letter-spacing: 0.22em;
+        margin-top: 0.2rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: var(--accent);
+        color: var(--blue-200);
       }
 
       .nav-link {
         display: inline-flex;
         align-items: center;
-        color: var(--ink);
+        color: #fff;
         text-decoration: none;
         border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 999px;
-        padding: 0.6rem 1.1rem;
+        border-radius: var(--radius-pill, 100px);
+        padding: 0.55rem 1rem;
         min-height: 44px;
         font-size: 0.9rem;
+        font-weight: 600;
         white-space: nowrap;
-        transition: border-color 0.15s ease, color 0.15s ease;
+        transition: background 0.15s ease, border-color 0.15s ease;
       }
 
       .nav-link:active {
-        border-color: var(--accent);
-        color: var(--accent);
+        background: rgba(255, 255, 255, 0.08);
       }
 
       @media (hover: hover) {
         .nav-link:hover {
-          border-color: var(--accent);
-          color: var(--accent);
+          background: rgba(255, 255, 255, 0.08);
         }
       }
 
@@ -224,54 +204,44 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        padding: 2.25rem 0 1rem;
+        padding: 2.5rem 0 1.5rem;
       }
 
       .eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.55rem;
         align-self: flex-start;
-        padding: 0.4rem 0.85rem;
-        border-radius: 999px;
-        border: 1px solid rgba(196, 240, 77, 0.35);
-        background: rgba(196, 240, 77, 0.08);
-        color: var(--accent);
+        padding: 0.35rem 0.85rem;
+        border-radius: 100px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #fff;
         font-size: 0.72rem;
         font-weight: 600;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
-      }
-
-      .eyebrow .dot {
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 50%;
-        background: var(--accent);
-        box-shadow: 0 0 10px var(--accent);
       }
 
       h1 {
-        font-family: "Fraunces", Georgia, serif;
-        font-size: clamp(2.75rem, 12vw, 4.5rem);
-        line-height: 0.95;
-        letter-spacing: -0.03em;
+        font-size: 2.75rem;
+        font-weight: 500;
+        line-height: 1.12;
+        letter-spacing: -0.02em;
         margin: 1.25rem 0 0;
-        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+        color: #fff;
       }
 
       h1 em {
-        font-style: normal;
-        color: var(--accent);
+        font-family: var(--font-italic);
+        font-style: italic;
+        font-weight: 500;
+        color: #fff;
       }
 
       .lead {
-        margin: 1.25rem 0 0;
-        font-size: clamp(1.05rem, 4.5vw, 1.25rem);
-        color: var(--muted);
+        margin: 1.15rem 0 0;
+        font-size: 1.05rem;
+        line-height: 1.5;
+        color: var(--blue-200);
         max-width: 30rem;
-        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.16s both;
       }
 
       .features {
@@ -281,15 +251,13 @@
         display: flex;
         flex-direction: column;
         gap: 0.85rem;
-        max-width: 30rem;
-        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
       }
 
       .features li {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.92);
         font-size: 1rem;
       }
 
@@ -298,8 +266,8 @@
         width: 1.6rem;
         height: 1.6rem;
         border-radius: 50%;
-        background: rgba(196, 240, 77, 0.16);
-        color: var(--accent);
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -312,7 +280,6 @@
         flex-direction: column;
         gap: 0.75rem;
         margin-top: 2rem;
-        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.32s both;
       }
 
       .btn {
@@ -320,84 +287,48 @@
         align-items: center;
         justify-content: center;
         width: 100%;
-        border-radius: 999px;
-        padding: 0.9rem 1.25rem;
+        border-radius: 8px;
+        padding: 0.85rem 1.25rem;
         min-height: 52px;
         font-weight: 600;
         font-size: 1.05rem;
         text-decoration: none;
+        border: 1px solid transparent;
         touch-action: manipulation;
-        transition: transform 0.15s ease, background 0.15s ease;
-      }
-
-      .btn:active {
-        transform: scale(0.98);
-      }
-
-      @media (hover: hover) {
-        .btn:hover {
-          transform: translateY(-1px);
-        }
+        transition: background 0.15s ease, border-color 0.15s ease;
       }
 
       .btn-primary {
-        background: var(--accent);
-        color: var(--brand);
-        box-shadow: 0 12px 30px rgba(196, 240, 77, 0.25);
+        background: var(--blue-main);
+        color: #fff;
       }
 
-      .btn-primary:hover {
-        background: #d6f76a;
+      .btn-primary:active {
+        background: var(--sp-navy-pressed);
+      }
+
+      @media (hover: hover) {
+        .btn-primary:hover {
+          background: var(--sp-navy-pressed);
+        }
       }
 
       .btn-ghost {
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        color: var(--ink);
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.3);
+        color: #fff;
       }
 
-      .btn-ghost:hover {
-        border-color: var(--accent);
-      }
-
-      @keyframes fade-in {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
+      @media (hover: hover) {
+        .btn-ghost:hover {
+          background: rgba(255, 255, 255, 0.08);
         }
       }
 
-      @keyframes rise {
-        from {
-          opacity: 0;
-          transform: translateY(18px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      /* Fra tablet og oppover: romsligere hero og knapper på rad */
-      @media (min-width: 640px) {
-        main {
-          padding: 4rem 0 3rem;
-          max-width: 40rem;
-        }
-
-        h1 {
-          margin-top: 1.5rem;
-        }
-
-        .actions {
-          flex-direction: row;
-          flex-wrap: wrap;
-        }
-
-        .btn {
-          width: auto;
-        }
+      .footnote {
+        margin-top: 1.75rem;
+        font-size: 0.8rem;
+        color: var(--secondary-400);
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -405,7 +336,6 @@
         *::before,
         *::after {
           animation-duration: 0.001ms !important;
-          animation-iteration-count: 1 !important;
           transition-duration: 0.001ms !important;
         }
       }
@@ -413,7 +343,7 @@
       /* På en ekte telefon: fjern rammen og fyll skjermen */
       @media (max-width: 500px) {
         body {
-          background: #0a1f17;
+          background: var(--sp-navy);
         }
 
         .device-viewport {
@@ -423,9 +353,10 @@
         }
 
         .device {
+          width: auto;
           height: auto;
           min-height: 100dvh;
-          aspect-ratio: auto;
+          margin: 0;
           padding: 0;
           background: transparent;
           border-radius: 0;
@@ -457,36 +388,36 @@
         <div class="device-screen">
           <span class="device-island" aria-hidden="true"></span>
           <div class="device-scroll">
-    <div class="shell">
-      <div class="bg" aria-hidden="true"></div>
-      <div class="horizon" aria-hidden="true"></div>
+            <div class="shell">
+              <div class="content">
+                <header>
+                  <p class="brand">Milestones<span>AI Running</span></p>
+                  <a class="nav-link" href="/login">Logg inn</a>
+                </header>
 
-      <div class="content">
-        <header>
-          <p class="brand">Milestones<span>AI Running</span></p>
-          <a class="nav-link" href="/login">Logg inn</a>
-        </header>
+                <main>
+                  <span class="eyebrow">AI-drevet løpetrener</span>
+                  <h1>Løp mot<br /><em>målene dine</em></h1>
+                  <p class="lead">
+                    Daglige treningsråd fra Garmin og Gemini — tilpasset formen og
+                    målene dine.
+                  </p>
 
-        <main>
-          <span class="eyebrow"><span class="dot" aria-hidden="true"></span>AI-drevet løpetrener</span>
-          <h1>Løp mot<br /><em>målene dine</em></h1>
-          <p class="lead">
-            Daglige treningsråd fra Garmin og Gemini — tilpasset formen og målene dine.
-          </p>
+                  <ul class="features">
+                    <li><span class="tick" aria-hidden="true">✓</span> Synker automatisk med Garmin Connect</li>
+                    <li><span class="tick" aria-hidden="true">✓</span> AI-analyse av hver økt med Gemini</li>
+                    <li><span class="tick" aria-hidden="true">✓</span> Personlig plan mot ditt neste løp</li>
+                  </ul>
 
-          <ul class="features">
-            <li><span class="tick" aria-hidden="true">✓</span> Synker automatisk med Garmin Connect</li>
-            <li><span class="tick" aria-hidden="true">✓</span> AI-analyse av hver økt med Gemini</li>
-            <li><span class="tick" aria-hidden="true">✓</span> Personlig plan mot ditt neste løp</li>
-          </ul>
+                  <div class="actions">
+                    <a class="btn btn-primary" href="/login">Kom i gang</a>
+                    <a class="btn btn-ghost" href="/login">Logg inn</a>
+                  </div>
 
-          <div class="actions">
-            <a class="btn btn-primary" href="/login">Kom i gang</a>
-            <a class="btn btn-ghost" href="/login">Logg inn</a>
-          </div>
-        </main>
-      </div>
-    </div>
+                  <p class="footnote">Personlig løpetrener med Garmin + Gemini.</p>
+                </main>
+              </div>
+            </div>
           </div>
         </div>
       </div>
