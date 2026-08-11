@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { MOCK_GOALS, MOCK_PROFILE } from "@/lib/mockData";
+import { MOCK_GOALS, MOCK_PROFILE, type Profile } from "@/lib/mockData";
+import { loadProfile, saveProfile } from "@/lib/profileStorage";
 import type { DailyRecord } from "@/lib/types";
 import { BottomSheet } from "@/components/app/ui";
 import {
@@ -51,6 +52,7 @@ export function AppShell({ userEmail }: { userEmail: string }) {
   const [sheet, setSheet] = useState<{ title: string; node: ReactNode } | null>(
     null,
   );
+  const [profile, setProfile] = useState<Profile>(MOCK_PROFILE);
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [garmin, setGarmin] = useState<GarminStatus>({
     connected: false,
@@ -59,6 +61,15 @@ export function AppShell({ userEmail }: { userEmail: string }) {
     error: null,
     loading: true,
   });
+
+  useEffect(() => {
+    setProfile(loadProfile());
+  }, []);
+
+  function handleSaveProfile(next: Profile) {
+    setProfile(next);
+    saveProfile(next);
+  }
 
   const syncGarmin = useCallback(async () => {
     setGarmin((g) => ({ ...g, loading: true, error: null }));
@@ -169,9 +180,11 @@ export function AppShell({ userEmail }: { userEmail: string }) {
           <>
             {tab === "profil" && (
               <ProfileScreen
-                profile={MOCK_PROFILE}
+                profile={profile}
+                onSaveProfile={handleSaveProfile}
                 garmin={garmin}
                 onSync={syncGarmin}
+                sheet={sheetApi}
               />
             )}
             {tab === "rapport" &&

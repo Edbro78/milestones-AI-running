@@ -15,6 +15,7 @@ import {
 import { predictFinishSeconds } from "@/lib/prognosis";
 import { computeSubscores } from "@/lib/trafficLight";
 import type { Profile, Goal } from "@/lib/mockData";
+import { ageFromBirthDate } from "@/lib/profileStorage";
 import type { DailyRecord, MetricKey } from "@/lib/types";
 import type { SheetApi, GarminStatus } from "@/components/app/AppShell";
 import {
@@ -37,25 +38,18 @@ function metricValueText(key: MetricKey, value: number): string {
 
 export function ProfileScreen({
   profile,
+  onSaveProfile,
   garmin,
   onSync,
+  sheet,
 }: {
   profile: Profile;
+  onSaveProfile: (profile: Profile) => void;
   garmin: GarminStatus;
   onSync: () => Promise<void>;
+  sheet: SheetApi;
 }) {
-  const age =
-    new Date().getFullYear() - new Date(profile.birthDate).getFullYear();
-
-  const rows: [string, string][] = [
-    ["Alder", `${age} år`],
-    ["Vekt", `${formatNumber(profile.weightKg)} kg`],
-    ["Makspuls", `${profile.hrMax} bpm`],
-    ["Terskelpuls", `${profile.hrThreshold} bpm`],
-    ["HRV-baseline", `${formatNumber(profile.hrvBaseline)} ms`],
-    ["Hvilepuls-baseline", `${profile.rhrBaseline} bpm`],
-    ["Ukentlig volum", `${formatNumber(profile.weeklyKm)} km`],
-  ];
+  const age = ageFromBirthDate(profile.birthDate);
 
   const statusLabel = garmin.loading
     ? "Synkroniserer…"
@@ -70,6 +64,30 @@ export function ProfileScreen({
     : garmin.mock
       ? "var(--warning-500)"
       : "var(--error-500)";
+
+  const rows: [string, string][] = [
+    ["Alder", `${age} år`],
+    ["Fødselsdato", formatDate(profile.birthDate)],
+    ["Vekt", `${formatNumber(profile.weightKg)} kg`],
+    ["Makspuls", `${profile.hrMax} bpm`],
+    ["Terskelpuls", `${profile.hrThreshold} bpm`],
+    ["HRV-baseline", `${formatNumber(profile.hrvBaseline)} ms`],
+    ["Hvilepuls-baseline", `${profile.rhrBaseline} bpm`],
+    ["Ukentlig volum", `${formatNumber(profile.weeklyKm)} km`],
+  ];
+
+  function openEditor() {
+    sheet.openSheet(
+      "Rediger profil",
+      <ProfileForm
+        initial={profile}
+        onSave={(next) => {
+          onSaveProfile(next);
+          sheet.closeSheet();
+        }}
+      />,
+    );
+  }
 
   return (
     <div className="flex h-full flex-col gap-2.5">
@@ -87,24 +105,32 @@ export function ProfileScreen({
               fontSize: "1.1rem",
             }}
           >
-            {profile.name.charAt(0)}
+            {(profile.name || "?").charAt(0)}
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p style={{ fontWeight: 700, fontSize: "1.05rem" }}>{profile.name}</p>
             <p style={{ color: "var(--gray-500)", fontSize: "0.8rem" }}>
               {age} år · {formatNumber(profile.weeklyKm)} km/uke
             </p>
           </div>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={openEditor}
+            style={{ padding: "0.45rem 0.7rem", minHeight: 40 }}
+          >
+            Rediger
+          </button>
         </div>
       </Card>
 
-      <Card style={{ padding: "0.25rem 0.85rem" }}>
+      <Card style={{ padding: "0.25rem 0.85rem", flex: 1, minHeight: 0, overflow: "hidden" }}>
         {rows.map(([label, value], i) => (
           <div
             key={label}
             className="flex items-center justify-between"
             style={{
-              padding: "0.45rem 0",
+              padding: "0.4rem 0",
               borderBottom:
                 i < rows.length - 1 ? "1px solid var(--border)" : "none",
             }}
@@ -176,6 +202,129 @@ export function ProfileScreen({
               : "Koble til / synkroniser"}
         </button>
       </Card>
+    </div>
+  );
+}
+
+function ProfileForm({
+  initial,
+  onSave,
+}: {
+  initial: Profile;
+  onSave: (profile: Profile) => void;
+}) {
+  const [name, setName] = useState(initial.name);
+  const [birthDate, setBirthDate] = useState(initial.birthDate);
+  const [weightKg, setWeightKg] = useState(String(initial.weightKg));
+  const [hrMax, setHrMax] = useState(String(initial.hrMax));
+  const [hrThreshold, setHrThreshold] = useState(String(initial.hrThreshold));
+  const [hrvBaseline, setHrvBaseline] = useState(String(initial.hrvBaseline));
+  const [rhrBaseline, setRhrBaseline] = useState(String(initial.rhrBaseline));
+  const [weeklyKm, setWeeklyKm] = useState(String(initial.weeklyKm));
+
+  function num(value: string, fallback: number) {
+    const n = Number(String(value).replace(",", "."));
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function save() {
+    onSave({
+      name: name.trim() || initial.name,
+      birthDate: birthDate || initial.birthDate,
+      weightKg: num(weightKg, initial.weightKg),
+      hrMax: Math.round(num(hrMax, initial.hrMax)),
+      hrThreshold: Math.round(num(hrThreshold, initial.hrThreshold)),
+      hrvBaseline: num(hrvBaseline, initial.hrvBaseline),
+      rhrBaseline: Math.round(num(rhrBaseline, initial.rhrBaseline)),
+      weeklyKm: num(weeklyKm, initial.weeklyKm),
+    });
+  }
+
+  const fields: {
+    id: string;
+    label: string;
+    value: string;
+    set: (v: string) => void;
+    type?: string;
+    inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+    step?: string;
+  }[] = [
+    { id: "name", label: "Navn", value: name, set: setName, type: "text" },
+    {
+      id: "birth",
+      label: "Fødselsdato",
+      value: birthDate,
+      set: setBirthDate,
+      type: "date",
+    },
+    {
+      id: "weight",
+      label: "Vekt (kg)",
+      value: weightKg,
+      set: setWeightKg,
+      inputMode: "decimal",
+      step: "0.1",
+    },
+    {
+      id: "hrmax",
+      label: "Makspuls (bpm)",
+      value: hrMax,
+      set: setHrMax,
+      inputMode: "numeric",
+    },
+    {
+      id: "thr",
+      label: "Terskelpuls (bpm)",
+      value: hrThreshold,
+      set: setHrThreshold,
+      inputMode: "numeric",
+    },
+    {
+      id: "hrv",
+      label: "HRV-baseline (ms)",
+      value: hrvBaseline,
+      set: setHrvBaseline,
+      inputMode: "decimal",
+      step: "0.1",
+    },
+    {
+      id: "rhr",
+      label: "Hvilepuls-baseline (bpm)",
+      value: rhrBaseline,
+      set: setRhrBaseline,
+      inputMode: "numeric",
+    },
+    {
+      id: "km",
+      label: "Ukentlig volum (km)",
+      value: weeklyKm,
+      set: setWeeklyKm,
+      inputMode: "decimal",
+      step: "0.1",
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      {fields.map((f) => (
+        <div key={f.id}>
+          <label className="label" htmlFor={`p-${f.id}`}>
+            {f.label}
+          </label>
+          <input
+            id={`p-${f.id}`}
+            className="input"
+            type={f.type ?? "text"}
+            inputMode={f.inputMode}
+            step={f.step}
+            value={f.value}
+            onChange={(e) => f.set(e.target.value)}
+          />
+        </div>
+      ))}
+      <button type="button" className="btn btn-primary w-full" onClick={save}>
+        Lagre
+      </button>
     </div>
   );
 }
