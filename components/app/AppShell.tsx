@@ -84,7 +84,6 @@ export function AppShell({ userEmail }: { userEmail: string }) {
         className="flex-1"
         style={{
           padding: "1rem",
-          paddingBottom: "calc(5.5rem + env(safe-area-inset-bottom))",
         }}
       >
         {tab === "profil" && (
@@ -98,7 +97,7 @@ export function AppShell({ userEmail }: { userEmail: string }) {
       </main>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-20"
+        className="sticky bottom-0 z-20"
         style={{
           background: "var(--white)",
           borderTop: "1px solid var(--border)",
