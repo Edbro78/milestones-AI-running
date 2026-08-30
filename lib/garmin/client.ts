@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { extractBodyBatteryNow } from "@/lib/garmin/bodyBattery";
 import {
   isMfaError,
+  isNotFoundError,
   isRateLimitError,
 } from "@/lib/garmin/errors";
 import type { DayMetrics, GarminSnapshot, Trafikklys } from "@/lib/types";
@@ -140,7 +141,7 @@ async function withGarmin<T>(fn: (client: GarminConnect) => Promise<T>): Promise
     }
     return result;
   } catch (err) {
-    if (isRateLimitError(err)) {
+    if (isRateLimitError(err) || isNotFoundError(err)) {
       throw err;
     }
     if (isMfaError(err)) {
@@ -232,25 +233,25 @@ export async function fetchDailySnapshot(date = todayISO()): Promise<GarminSnaps
       console.warn("[garmin] Body Battery fetch failed", err);
     }
 
-    // Training readiness
+    // Training Readiness er ikke på alle kontoer — 404 er forventet.
     try {
-      const readiness = await client.get<Record<string, unknown>>(
-        `https://connectapi.garmin.com/metrics-service/metrics/maxmet/daily/${date}/${date}`,
+      const rows = await client.get<unknown>(
+        `https://connectapi.garmin.com/metrics-service/metrics/trainingreadiness/${date}/${date}`,
       );
-      raw.trainingReadiness = readiness;
-    } catch {
-      // optional
-    }
-
-    try {
-      const readiness2 = await client.get<{
-        score?: number;
-      }>(`https://connectapi.garmin.com/training-readiness-service/trainingReadiness/${date}`);
-      raw.trainingReadinessDetail = readiness2;
-      training_readiness = readiness2?.score ?? null;
+      const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+      const first = list[0] as { score?: number; trainingReadiness?: number } | undefined;
+      training_readiness =
+        typeof first?.score === "number"
+          ? first.score
+          : typeof first?.trainingReadiness === "number"
+            ? first.trainingReadiness
+            : null;
+      raw.trainingReadiness = rows;
     } catch (err) {
-      notes.push("Kunne ikke hente training readiness");
-      console.warn("[garmin] readiness failed", err);
+      if (!isNotFoundError(err)) {
+        notes.push("Kunne ikke hente training readiness");
+        console.warn("[garmin] readiness skipped");
+      }
     }
 
     // 7-day averages for HRV / RHR
@@ -620,7 +621,9 @@ async function fetchReadinessByDate(
         if (date && score != null) map.set(date, score);
       }
     } catch (err) {
-      console.warn(`[garmin] readiness chunk ${from}..${to} failed`, err);
+      if (!isNotFoundError(err)) {
+        console.warn(`[garmin] readiness chunk ${from}..${to} skipped`);
+      }
     }
   }
   return map;
@@ -736,14 +739,15 @@ export async function fetchHistoryMetrics(
 
     await mapPool(missingRec, 4, async (date) => {
       try {
-        const readiness = await client.get<unknown>(
-          `https://connectapi.garmin.com/training-readiness-service/trainingReadiness/${date}`,
+        const rows = await client.get<unknown>(
+          `https://connectapi.garmin.com/metrics-service/metrics/trainingreadiness/${date}/${date}`,
         );
-        const row = Array.isArray(readiness) ? readiness[0] : readiness;
+        const list = asRows(rows);
+        const row = list.find((r) => rowDate(r) === date) ?? list[0];
         const score = extractReadinessScore(row);
         if (score != null) recByDate.set(date, score);
       } catch {
-        // skip day
+        // skip day — 404 betyr at kontoen ikke har Training Readiness
       }
     });
 
