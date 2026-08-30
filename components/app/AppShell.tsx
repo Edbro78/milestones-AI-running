@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { MOCK_GOALS, MOCK_PROFILE, type Profile } from "@/lib/mockData";
-import { loadProfile, saveProfile } from "@/lib/profileStorage";
+import { loadLocalProfile, saveLocalProfile } from "@/lib/profileStorage";
+import { formatGarminUserError } from "@/lib/garmin/errors";
 import type { DailyRecord } from "@/lib/types";
 import { BottomSheet } from "@/components/app/ui";
 import {
@@ -52,7 +53,11 @@ export function AppShell({ userEmail }: { userEmail: string }) {
   const [sheet, setSheet] = useState<{ title: string; node: ReactNode } | null>(
     null,
   );
-  const [profile, setProfile] = useState<Profile>(MOCK_PROFILE);
+  const [profile, setProfile] = useState<Profile>({
+    ...MOCK_PROFILE,
+    hrvBaseline: null,
+    rhrBaseline: null,
+  });
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [garmin, setGarmin] = useState<GarminStatus>({
     connected: false,
@@ -63,12 +68,79 @@ export function AppShell({ userEmail }: { userEmail: string }) {
   });
 
   useEffect(() => {
-    setProfile(loadProfile());
+    let cancelled = false;
+    async function load() {
+      const local = loadLocalProfile();
+      if (local && !cancelled) setProfile(local);
+      try {
+        const res = await fetch("/api/profile");
+        const data = (await res.json()) as {
+          profile?: Profile;
+          saved?: boolean;
+          error?: string;
+        };
+        if (!res.ok || !data.profile || cancelled) return;
+
+        let next = data.profile;
+        if (!data.saved) {
+          if (local) {
+            next = {
+              ...data.profile,
+              ...local,
+              hrvBaseline: data.profile.hrvBaseline,
+              rhrBaseline: data.profile.rhrBaseline,
+            };
+          }
+          await fetch("/api/profile", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(next),
+          });
+        }
+        if (!cancelled) {
+          setProfile((current) => {
+            const merged = {
+              ...next,
+              hrvBaseline:
+                typeof current.hrvBaseline === "number"
+                  ? current.hrvBaseline
+                  : next.hrvBaseline,
+              rhrBaseline:
+                typeof current.rhrBaseline === "number"
+                  ? current.rhrBaseline
+                  : next.rhrBaseline,
+            };
+            saveLocalProfile(merged);
+            return merged;
+          });
+        }
+      } catch {
+        // Behold local/mock hvis nettverket feiler
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  function handleSaveProfile(next: Profile) {
+  async function handleSaveProfile(next: Profile) {
     setProfile(next);
-    saveProfile(next);
+    saveLocalProfile(next);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const data = (await res.json()) as { profile?: Profile; error?: string };
+      if (res.ok && data.profile) {
+        setProfile(data.profile);
+        saveLocalProfile(data.profile);
+      }
+    } catch {
+      // Allerede lagret lokalt som fallback
+    }
   }
 
   const syncGarmin = useCallback(async () => {
@@ -81,7 +153,9 @@ export function AppShell({ userEmail }: { userEmail: string }) {
           connected: false,
           mock: Boolean(data.mock),
           lastSync: null,
-          error: data.error || data.message || "Kunne ikke synkronisere Garmin",
+          error: formatGarminUserError(
+            data.error || data.message || "Kunne ikke synkronisere Garmin",
+          ),
           loading: false,
         });
         // Behold eksisterende records hvis vi har noen; ellers tom
@@ -98,12 +172,23 @@ export function AppShell({ userEmail }: { userEmail: string }) {
         error: data.message ?? null,
         loading: false,
       });
+      setProfile((current) => {
+        const next = {
+          ...current,
+          hrvBaseline:
+            typeof data.hrvBaseline === "number" ? data.hrvBaseline : current.hrvBaseline,
+          rhrBaseline:
+            typeof data.rhrBaseline === "number" ? data.rhrBaseline : current.rhrBaseline,
+        };
+        saveLocalProfile(next);
+        return next;
+      });
     } catch (err) {
       setGarmin({
         connected: false,
         mock: false,
         lastSync: null,
-        error: err instanceof Error ? err.message : "Nettverksfeil mot Garmin",
+        error: formatGarminUserError(err),
         loading: false,
       });
     }
@@ -189,7 +274,11 @@ export function AppShell({ userEmail }: { userEmail: string }) {
             )}
             {tab === "rapport" &&
               (records.length ? (
-                <ReportScreen records={records} />
+                <ReportScreen
+                  records={records}
+                  goal={MOCK_GOALS.find((g) => g.isMain) ?? null}
+                  weeklyKm={profile.weeklyKm}
+                />
               ) : (
                 <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
               ))}

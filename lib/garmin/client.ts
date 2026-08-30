@@ -1,8 +1,13 @@
 import { GarminConnect } from "garmin-connect";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isMfaError,
+  isRateLimitError,
+} from "@/lib/garmin/errors";
 import type { DayMetrics, GarminSnapshot, Trafikklys } from "@/lib/types";
 import { todayISO } from "@/lib/time";
 
+export { formatGarminUserError } from "@/lib/garmin/errors";
 export type { DayMetrics };
 
 type OauthBundle = {
@@ -30,11 +35,6 @@ function daysAgo(n: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d;
-}
-
-function isMfaError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return /mfa|multi.?factor|totp|verification code|2fa/i.test(msg);
 }
 
 async function loadTokensFromDb(): Promise<OauthBundle | null> {
@@ -139,6 +139,9 @@ async function withGarmin<T>(fn: (client: GarminConnect) => Promise<T>): Promise
     }
     return result;
   } catch (err) {
+    if (isRateLimitError(err)) {
+      throw err;
+    }
     if (isMfaError(err)) {
       console.error(
         "[garmin] MFA required during request. Disable MFA or resolve manually.",

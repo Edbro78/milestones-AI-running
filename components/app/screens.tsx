@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CATEGORIES, METRIC_META, METRIC_ORDER } from "@/lib/categories";
-import { coachReply, suggestSession, weeklyReport } from "@/lib/coach";
+import { coachReply, suggestSession } from "@/lib/coach";
 import {
   daysUntil,
   formatDate,
@@ -11,13 +11,15 @@ import {
   formatShortDay,
   formatSigned,
   parseTimeToSeconds,
+  recordDistanceKm,
 } from "@/lib/format";
-import { predictFinishSeconds } from "@/lib/prognosis";
+import { marathonFormTrend, weekTowardGoal } from "@/lib/prognosis";
 import { computeSubscores } from "@/lib/trafficLight";
 import type { Profile, Goal } from "@/lib/mockData";
 import { ageFromBirthDate } from "@/lib/profileStorage";
 import type { DailyRecord, MetricKey } from "@/lib/types";
 import type { SheetApi, GarminStatus } from "@/components/app/AppShell";
+import { GoalTrendChart } from "@/components/app/GoalTrendChart";
 import {
   Card,
   CategoryDot,
@@ -65,15 +67,28 @@ export function ProfileScreen({
       ? "var(--warning-500)"
       : "var(--error-500)";
 
-  const rows: [string, string][] = [
-    ["Alder", `${age} år`],
-    ["Fødselsdato", formatDate(profile.birthDate)],
-    ["Vekt", `${formatNumber(profile.weightKg)} kg`],
-    ["Makspuls", `${profile.hrMax} bpm`],
-    ["Terskelpuls", `${profile.hrThreshold} bpm`],
-    ["HRV-baseline", `${formatNumber(profile.hrvBaseline)} ms`],
-    ["Hvilepuls-baseline", `${profile.rhrBaseline} bpm`],
-    ["Ukentlig volum", `${formatNumber(profile.weeklyKm)} km`],
+  const userRows: { label: string; value: string }[] = [
+    { label: "Alder", value: age ? `${age} år` : "—" },
+    { label: "Fødselsdato", value: profile.birthDate ? formatDate(profile.birthDate) : "—" },
+    { label: "Vekt", value: `${formatNumber(profile.weightKg)} kg` },
+    { label: "Makspuls", value: `${profile.hrMax} bpm` },
+    { label: "Terskelpuls", value: `${profile.hrThreshold} bpm` },
+    {
+      label: "Ønsket ukentlig volum",
+      value: `${formatNumber(profile.weeklyKm)} km`,
+    },
+  ];
+
+  const garminRows: { label: string; value: string }[] = [
+    {
+      label: "HRV-baseline",
+      value:
+        profile.hrvBaseline != null ? `${formatNumber(profile.hrvBaseline)} ms` : "—",
+    },
+    {
+      label: "Hvilepuls-baseline",
+      value: profile.rhrBaseline != null ? `${profile.rhrBaseline} bpm` : "—",
+    },
   ];
 
   function openEditor() {
@@ -124,27 +139,22 @@ export function ProfileScreen({
         </div>
       </Card>
 
-      <Card style={{ padding: "0.25rem 0.85rem", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        {rows.map(([label, value], i) => (
-          <div
-            key={label}
-            className="flex items-center justify-between"
-            style={{
-              padding: "0.4rem 0",
-              borderBottom:
-                i < rows.length - 1 ? "1px solid var(--border)" : "none",
-            }}
-          >
-            <span style={{ color: "var(--gray-600)", fontSize: "0.85rem" }}>
-              {label}
-            </span>
-            <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{value}</span>
-          </div>
-        ))}
+      <Card style={{ padding: "0.65rem 0.85rem", flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <SectionTitle>Dine opplysninger</SectionTitle>
+        <ProfileFieldRows rows={userRows} />
       </Card>
 
-      <Card style={{ padding: "0.75rem" }}>
-        <div className="flex items-center justify-between gap-2">
+      <Card style={{ padding: "0.65rem 0.85rem" }}>
+        <SectionTitle>Fra Garmin</SectionTitle>
+        <ProfileFieldRows rows={garminRows} />
+        <div
+          className="flex items-center justify-between gap-2"
+          style={{
+            marginTop: "0.45rem",
+            paddingTop: "0.5rem",
+            borderTop: "1px solid var(--border)",
+          }}
+        >
           <div className="flex items-center gap-2 min-w-0">
             <span
               style={{
@@ -184,6 +194,9 @@ export function ProfileScreen({
               fontSize: "0.78rem",
               color: "var(--error-700)",
               lineHeight: 1.35,
+              overflowWrap: "anywhere",
+              maxHeight: "4.2em",
+              overflow: "hidden",
             }}
           >
             {garmin.error}
@@ -206,6 +219,33 @@ export function ProfileScreen({
   );
 }
 
+function ProfileFieldRows({
+  rows,
+}: {
+  rows: { label: string; value: string }[];
+}) {
+  return (
+    <>
+      {rows.map((row, i) => (
+        <div
+          key={row.label}
+          className="flex items-center justify-between"
+          style={{
+            padding: "0.32rem 0",
+            borderBottom:
+              i < rows.length - 1 ? "1px solid var(--border)" : "none",
+          }}
+        >
+          <span style={{ color: "var(--gray-600)", fontSize: "0.85rem" }}>
+            {row.label}
+          </span>
+          <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{row.value}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function ProfileForm({
   initial,
   onSave,
@@ -218,8 +258,6 @@ function ProfileForm({
   const [weightKg, setWeightKg] = useState(String(initial.weightKg));
   const [hrMax, setHrMax] = useState(String(initial.hrMax));
   const [hrThreshold, setHrThreshold] = useState(String(initial.hrThreshold));
-  const [hrvBaseline, setHrvBaseline] = useState(String(initial.hrvBaseline));
-  const [rhrBaseline, setRhrBaseline] = useState(String(initial.rhrBaseline));
   const [weeklyKm, setWeeklyKm] = useState(String(initial.weeklyKm));
 
   function num(value: string, fallback: number) {
@@ -234,8 +272,8 @@ function ProfileForm({
       weightKg: num(weightKg, initial.weightKg),
       hrMax: Math.round(num(hrMax, initial.hrMax)),
       hrThreshold: Math.round(num(hrThreshold, initial.hrThreshold)),
-      hrvBaseline: num(hrvBaseline, initial.hrvBaseline),
-      rhrBaseline: Math.round(num(rhrBaseline, initial.rhrBaseline)),
+      hrvBaseline: initial.hrvBaseline,
+      rhrBaseline: initial.rhrBaseline,
       weeklyKm: num(weeklyKm, initial.weeklyKm),
     });
   }
@@ -246,6 +284,7 @@ function ProfileForm({
     value: string;
     set: (v: string) => void;
     type?: string;
+    hint?: string;
     inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
     step?: string;
   }[] = [
@@ -256,6 +295,7 @@ function ProfileForm({
       value: birthDate,
       set: setBirthDate,
       type: "date",
+      hint: "Alder beregnes automatisk",
     },
     {
       id: "weight",
@@ -280,23 +320,8 @@ function ProfileForm({
       inputMode: "numeric",
     },
     {
-      id: "hrv",
-      label: "HRV-baseline (ms)",
-      value: hrvBaseline,
-      set: setHrvBaseline,
-      inputMode: "decimal",
-      step: "0.1",
-    },
-    {
-      id: "rhr",
-      label: "Hvilepuls-baseline (bpm)",
-      value: rhrBaseline,
-      set: setRhrBaseline,
-      inputMode: "numeric",
-    },
-    {
       id: "km",
-      label: "Ukentlig volum (km)",
+      label: "Ønsket ukentlig volum (km)",
       value: weeklyKm,
       set: setWeeklyKm,
       inputMode: "decimal",
@@ -320,6 +345,11 @@ function ProfileForm({
             value={f.value}
             onChange={(e) => f.set(e.target.value)}
           />
+          {f.hint ? (
+            <p className="mt-1" style={{ color: "var(--gray-500)", fontSize: "0.75rem" }}>
+              {f.hint}
+            </p>
+          ) : null}
         </div>
       ))}
       <button type="button" className="btn btn-primary w-full" onClick={save}>
@@ -331,106 +361,176 @@ function ProfileForm({
 
 /* ============================ Rapport ============================ */
 
-export function ReportScreen({ records }: { records: DailyRecord[] }) {
+export function ReportScreen({
+  records,
+  goal,
+  weeklyKm,
+}: {
+  records: DailyRecord[];
+  goal?: Goal | null;
+  weeklyKm?: number;
+}) {
   const week = records.slice(-7);
-  const avgScore = week.length
-    ? Math.round(week.reduce((s, r) => s + r.score, 0) / week.length)
-    : 0;
-  const avgHrv = week.length
-    ? week.reduce((s, r) => s + r.metrics.hrv_z, 0) / week.length
-    : 0;
-  const lastAcwr = week.length ? week[week.length - 1].metrics.acwr : 0;
+  const weekKm = week.reduce((s, r) => s + recordDistanceKm(r), 0);
+  const verdict = goal
+    ? weekTowardGoal(records, goal, weeklyKm)
+    : null;
 
-  const [report, setReport] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  function generate() {
-    setLoading(true);
-    setTimeout(() => {
-      setReport(weeklyReport(records));
-      setLoading(false);
-    }, 600);
-  }
+  const verdictColor =
+    verdict?.direction === "closer"
+      ? "var(--success-700)"
+      : verdict?.direction === "further"
+        ? "var(--error-700)"
+        : "var(--gray-700)";
+  const verdictBg =
+    verdict?.direction === "closer"
+      ? "var(--success-bg)"
+      : verdict?.direction === "further"
+        ? "var(--error-bg)"
+        : "var(--blue-50)";
+  const verdictBorder =
+    verdict?.direction === "closer"
+      ? "var(--success-border)"
+      : verdict?.direction === "further"
+        ? "var(--error-border)"
+        : "var(--blue-200)";
 
   return (
     <div className="flex h-full flex-col gap-2.5">
       <Card style={{ padding: "0.75rem" }}>
-        <SectionTitle>Sju dager</SectionTitle>
-        <div className="flex items-end gap-1" style={{ height: 44 }}>
+        <div className="flex items-baseline justify-between gap-2" style={{ marginBottom: "0.55rem" }}>
+          <h2
+            className="text-[0.72rem] uppercase"
+            style={{
+              letterSpacing: "0.12em",
+              color: "var(--gray-500)",
+              fontWeight: 600,
+              margin: 0,
+            }}
+          >
+            Volum og trafikklys
+          </h2>
+          <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--sp-navy)" }}>
+            {formatNumber(weekKm, 1)} km
+            {weeklyKm ? (
+              <span style={{ fontWeight: 500, color: "var(--gray-500)", fontSize: "0.75rem" }}>
+                {" "}
+                / {formatNumber(weeklyKm, 0)} km
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex gap-1">
           {week.map((r) => {
             const c = CATEGORIES[r.category];
+            const km = recordDistanceKm(r);
             return (
               <div
                 key={r.date}
-                className="flex flex-1 flex-col items-center justify-end gap-1"
-                title={`${formatDate(r.date)} · ${c.label} · ${r.score}`}
+                className="flex flex-1 flex-col items-center gap-1"
+                title={`${formatDate(r.date)} · ${c.label} · ${formatNumber(km, 1)} km`}
               >
-                <div
-                  style={{
-                    width: "100%",
-                    height: `${Math.max(6, (r.score / 100) * 32)}px`,
-                    background: c.dot,
-                    borderRadius: 3,
-                  }}
-                />
                 <span style={{ fontSize: "0.58rem", color: "var(--gray-400)" }}>
-                  {formatShortDay(r.date).split(" ")[0]}
+                  {formatShortDay(r.date).split(" ")[0].replace(".", "")}
+                </span>
+                <CategoryDot category={r.category} size={14} />
+                <span
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 600,
+                    color: "var(--sp-navy)",
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {km > 0 ? formatNumber(km, 1) : "–"}
                 </span>
               </div>
             );
           })}
         </div>
-      </Card>
-
-      <div className="grid grid-cols-3 gap-2">
-        <MiniStat label="Snittskår" value={avgScore} />
-        <MiniStat label="HRV z" value={formatSigned(avgHrv, 2)} />
-        <MiniStat
-          label="ACWR"
-          value={formatNumber(lastAcwr, 2)}
-          color={lastAcwr >= 1.5 ? "var(--error-600)" : undefined}
-        />
-      </div>
-
-      <Card style={{ padding: "0.85rem", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <SectionTitle>Ukesoppsummering</SectionTitle>
-        <div style={{ overflow: "hidden" }}>
-          {report ? (
-            <div className="flex flex-col gap-2">
-              {report.split("\n\n").map((p, i) => (
-                <p
-                  key={i}
-                  style={{
-                    color: "var(--gray-700)",
-                    fontSize: "0.84rem",
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {p}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: "var(--gray-500)", fontSize: "0.88rem" }}>
-              Ingen rapport generert for denne uken ennå. Genereres lokalt inntil
-              Gemini kobles på.
-            </p>
-          )}
-        </div>
-        <button
-          type="button"
-          className="btn btn-primary mt-3 w-full"
-          onClick={generate}
-          disabled={loading}
+        <p
+          style={{
+            margin: "0.35rem 0 0",
+            textAlign: "right",
+            fontSize: "0.62rem",
+            color: "var(--gray-400)",
+          }}
         >
-          {loading ? "Genererer…" : "Generer ukesrapport"}
-        </button>
+          km per dag
+        </p>
       </Card>
+
+      {verdict ? (
+        <Card
+          style={{
+            padding: "0.85rem",
+            flex: 1,
+            minHeight: 0,
+            background: verdictBg,
+            borderColor: verdictBorder,
+          }}
+        >
+          <p
+            style={{
+              fontSize: "0.62rem",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              fontWeight: 600,
+              color: verdictColor,
+            }}
+          >
+            Mot {goal?.title}
+          </p>
+          <p
+            style={{
+              marginTop: "0.35rem",
+              fontWeight: 700,
+              fontSize: "1.15rem",
+              color: verdictColor,
+            }}
+          >
+            {verdict.headline}
+          </p>
+          <p
+            style={{
+              marginTop: "0.45rem",
+              color: "var(--gray-700)",
+              fontSize: "0.84rem",
+              lineHeight: 1.45,
+            }}
+          >
+            {verdict.detail}
+          </p>
+        </Card>
+      ) : (
+        <Card style={{ padding: "0.85rem", flex: 1 }}>
+          <p style={{ color: "var(--gray-500)", fontSize: "0.88rem" }}>
+            Sett et hovedmål for å se om uken tok deg nærmere eller lenger unna.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }
 
 /* ============================ Mål ============================ */
+
+const GOAL_STORAGE_KEY = "milestones_marathon_goal_v1";
+const MARATHON_MIN_S = 2 * 3600;
+const MARATHON_MAX_S = 6 * 3600 + 30 * 60;
+
+function loadStoredGoal(fallback: Goal | null): Goal | null {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(GOAL_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Goal;
+    if (!parsed?.eventDate || !parsed.targetTimeS) return fallback;
+    return { ...parsed, isMain: true };
+  } catch {
+    return fallback;
+  }
+}
 
 export function GoalsScreen({
   goals: initialGoals,
@@ -441,12 +541,12 @@ export function GoalsScreen({
   records: DailyRecord[];
   sheet: SheetApi;
 }) {
-  const [goals, setGoals] = useState<Goal[]>(initialGoals);
+  const initial = initialGoals.find((g) => g.isMain) ?? initialGoals[0] ?? null;
+  const [goal, setGoal] = useState<Goal | null>(initial);
 
-  const main = goals.find((g) => g.isMain);
-  const others = goals
-    .filter((g) => !g.isMain)
-    .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  useEffect(() => {
+    setGoal(loadStoredGoal(initial));
+  }, [initial]);
 
   function saveGoal(data: {
     id?: string;
@@ -454,70 +554,161 @@ export function GoalsScreen({
     eventDate: string;
     targetTimeS: number;
   }) {
-    if (data.id) {
-      setGoals((gs) =>
-        gs.map((g) =>
-          g.id === data.id
-            ? { ...g, title: data.title, eventDate: data.eventDate, targetTimeS: data.targetTimeS }
-            : g,
-        ),
-      );
-    } else {
-      setGoals((gs) => [
-        ...gs,
-        {
-          id: `goal-${Date.now()}`,
-          title: data.title,
-          eventDate: data.eventDate,
-          targetTimeS: data.targetTimeS,
-          isMain: false,
-        },
-      ]);
+    const next: Goal = {
+      id: data.id ?? goal?.id ?? `goal-${Date.now()}`,
+      title: data.title,
+      eventDate: data.eventDate,
+      targetTimeS: data.targetTimeS,
+      isMain: true,
+    };
+    setGoal(next);
+    try {
+      window.localStorage.setItem(GOAL_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
     }
     sheet.closeSheet();
   }
 
-  function openForm(goal?: Goal) {
+  function openForm() {
     sheet.openSheet(
-      goal ? "Rediger mål" : "Nytt mål",
-      <GoalForm goal={goal} onSave={saveGoal} />,
+      goal ? "Rediger maraton" : "Maratonmål",
+      <GoalForm goal={goal ?? undefined} onSave={saveGoal} />,
     );
   }
 
-  function deleteGoal(id: string) {
-    setGoals((gs) => gs.filter((g) => g.id !== id));
+  if (!goal) {
+    return (
+      <div className="flex h-full flex-col justify-center gap-3">
+        <p style={{ color: "var(--gray-500)", fontSize: "0.9rem", textAlign: "center" }}>
+          Sett ett maraton som mål. Diagrammet viser om formen er på merket frem mot løpsdagen.
+        </p>
+        <button type="button" className="btn btn-primary w-full" onClick={openForm}>
+          Legg inn maraton
+        </button>
+      </div>
+    );
   }
+
+  const trend = marathonFormTrend(records, goal);
+  const days = daysUntil(goal.eventDate);
 
   return (
     <div className="flex h-full flex-col gap-2.5">
-      {main && <MainGoalCard goal={main} records={records} onEdit={() => openForm(main)} />}
-
-      <SectionTitle>Andre mål</SectionTitle>
-      <div className="flex flex-col gap-2">
-        {others.map((g) => (
-          <GoalCard
-            key={g.id}
-            goal={g}
-            onEdit={() => openForm(g)}
-            onDelete={() => deleteGoal(g.id)}
-          />
-        ))}
-        {others.length === 0 && (
-          <Card style={{ padding: "0.75rem" }}>
-            <p style={{ color: "var(--gray-500)", fontSize: "0.88rem" }}>
-              Ingen flere mål ennå.
+      <div
+        className="panel"
+        style={{
+          background: "var(--sp-navy)",
+          color: "#fff",
+          border: "none",
+          borderRadius: "var(--radius-lg)",
+          padding: "0.85rem",
+        }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p
+              style={{
+                fontSize: "0.62rem",
+                letterSpacing: "0.1em",
+                color: "var(--blue-200)",
+                textTransform: "uppercase",
+              }}
+            >
+              Maraton
             </p>
-          </Card>
-        )}
+            <p style={{ fontWeight: 700, fontSize: "1.08rem" }}>{goal.title}</p>
+            <p style={{ color: "var(--blue-200)", fontSize: "0.78rem" }}>
+              {formatDate(goal.eventDate)}
+              {days >= 0 ? ` · ${days} dager igjen` : " · gjennomført"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openForm}
+            aria-label="Rediger maraton"
+            style={{ color: "var(--blue-200)", padding: 4 }}
+          >
+            <i className="bx bx-edit-alt" aria-hidden="true" />
+          </button>
+        </div>
+        <div
+          className="mt-3 grid grid-cols-2 gap-2"
+          style={{
+            padding: "0.55rem 0.65rem",
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: "var(--radius-md)",
+          }}
+        >
+          <div>
+            <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>I dag</p>
+            <p style={{ fontWeight: 700, fontSize: "1.05rem" }}>
+              {formatDuration(trend.todayS)}
+            </p>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>Mål</p>
+            <p style={{ fontWeight: 700, fontSize: "1.05rem" }}>
+              {formatDuration(goal.targetTimeS)}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <button
-        type="button"
-        className="btn btn-ghost mt-auto w-full"
-        onClick={() => openForm()}
-      >
-        <i className="bx bx-plus" aria-hidden="true" /> Legg til mål
-      </button>
+      <Card style={{ padding: "0.65rem 0.7rem 0.5rem", flex: 1, minHeight: 0 }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: "0.35rem" }}>
+          <p
+            className="text-[0.72rem] uppercase"
+            style={{ letterSpacing: "0.12em", color: "var(--gray-500)", fontWeight: 600 }}
+          >
+            Form mot løpsdagen
+          </p>
+          <span
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              color: trend.onTrack ? "var(--success-700)" : "var(--error-700)",
+            }}
+          >
+            {trend.onTrack ? "På merket" : "Bak merket"}
+          </span>
+        </div>
+        <GoalTrendChart trend={trend} height={158} />
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1" style={{ fontSize: "0.68rem", color: "var(--gray-500)" }}>
+          <span className="inline-flex items-center gap-1">
+            <span style={{ width: 10, height: 2, background: "var(--sp-navy)", display: "inline-block" }} />
+            Form til nå
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span
+              style={{
+                width: 10,
+                height: 0,
+                borderTop: "2px dashed var(--blue-main)",
+                display: "inline-block",
+              }}
+            />
+            Om du gjør alt
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span
+              style={{
+                width: 10,
+                height: 0,
+                borderTop: "1.5px dashed var(--blue-main)",
+                display: "inline-block",
+                opacity: 0.6,
+              }}
+            />
+            Måltid
+          </span>
+        </div>
+        <p style={{ marginTop: "0.45rem", fontSize: "0.78rem", color: "var(--gray-600)", lineHeight: 1.4 }}>
+          {trend.onTrack
+            ? `Dagens potensial er ${formatDuration(trend.todayS)}. Gjør du det du skal de neste ${trend.daysLeft} dagene, går estimatet gradvis mot ${formatDuration(goal.targetTimeS)}.`
+            : `Dagens potensial er ${formatDuration(trend.todayS)}, bak det merket krever (${formatDuration(trend.requiredTodayS)}). Kurven viser veien mot ${formatDuration(goal.targetTimeS)} hvis du gjør alt du skal.`}
+        </p>
+      </Card>
     </div>
   );
 }
@@ -536,25 +727,43 @@ function GoalForm({
 }) {
   const [title, setTitle] = useState(goal?.title ?? "");
   const [date, setDate] = useState(goal?.eventDate ?? "");
-  const [time, setTime] = useState(goal ? formatDuration(goal.targetTimeS) : "");
+  const [time, setTime] = useState(goal ? formatDuration(goal.targetTimeS) : "2:59:00");
+  const [error, setError] = useState<string | null>(null);
+
+  function submit() {
+    const seconds = parseTimeToSeconds(time || "0");
+    if (seconds < MARATHON_MIN_S || seconds > MARATHON_MAX_S) {
+      setError("Målet må være et maraton mellom 2:00:00 og 6:30:00.");
+      return;
+    }
+    onSave({
+      id: goal?.id,
+      title: title.trim() || "Maraton",
+      eventDate: date,
+      targetTimeS: seconds,
+    });
+  }
 
   return (
     <div className="flex flex-col gap-3">
+      <p style={{ color: "var(--gray-500)", fontSize: "0.82rem", lineHeight: 1.4 }}>
+        Ett mål, og det må være et maraton.
+      </p>
       <div>
         <label className="label" htmlFor="g-title">
-          Tittel
+          Løp
         </label>
         <input
           id="g-title"
           className="input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="F.eks. Oslo maraton"
+          placeholder="F.eks. Warszawa maraton"
         />
       </div>
       <div>
         <label className="label" htmlFor="g-date">
-          Dato
+          Løpsdag
         </label>
         <input
           id="g-date"
@@ -572,156 +781,26 @@ function GoalForm({
           id="g-time"
           className="input"
           value={time}
-          onChange={(e) => setTime(e.target.value)}
-          placeholder="3:00:00"
+          onChange={(e) => {
+            setTime(e.target.value);
+            setError(null);
+          }}
+          placeholder="2:59:00"
           inputMode="numeric"
         />
       </div>
+      {error ? (
+        <p style={{ color: "var(--error-700)", fontSize: "0.8rem" }}>{error}</p>
+      ) : null}
       <button
         type="button"
         className="btn btn-primary w-full"
-        disabled={!title || !date}
-        onClick={() =>
-          onSave({
-            id: goal?.id,
-            title,
-            eventDate: date,
-            targetTimeS: parseTimeToSeconds(time || "0"),
-          })
-        }
+        disabled={!date}
+        onClick={submit}
       >
-        Lagre
+        Lagre maraton
       </button>
     </div>
-  );
-}
-
-function MainGoalCard({
-  goal,
-  records,
-  onEdit,
-}: {
-  goal: Goal;
-  records: DailyRecord[];
-  onEdit: () => void;
-}) {
-  const days = daysUntil(goal.eventDate);
-  const predicted = predictFinishSeconds(goal.targetTimeS, records);
-  const deviation = predicted - goal.targetTimeS;
-  const ahead = deviation <= 0;
-
-  return (
-    <div
-      className="panel"
-      style={{
-        background: "var(--sp-navy)",
-        color: "#fff",
-        border: "none",
-        borderRadius: "var(--radius-lg)",
-        padding: "0.9rem",
-      }}
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <p style={{ fontSize: "0.62rem", letterSpacing: "0.1em", color: "var(--blue-200)", textTransform: "uppercase" }}>
-            Hovedmål
-          </p>
-          <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>{goal.title}</p>
-          <p style={{ color: "var(--blue-200)", fontSize: "0.8rem" }}>
-            {formatDate(goal.eventDate)} · {days} dager igjen
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onEdit}
-          aria-label="Rediger hovedmål"
-          style={{ color: "var(--blue-200)", padding: 4 }}
-        >
-          <i className="bx bx-edit-alt" aria-hidden="true" />
-        </button>
-      </div>
-
-      <div
-        className="mt-3 flex items-center justify-between"
-        style={{
-          padding: "0.6rem 0.7rem",
-          background: "rgba(255,255,255,0.08)",
-          borderRadius: "var(--radius-md)",
-        }}
-      >
-        <div>
-          <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>Måltid</p>
-          <p style={{ fontWeight: 700, fontSize: "1rem" }}>
-            {formatDuration(goal.targetTimeS)}
-          </p>
-        </div>
-        <div>
-          <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>Estimert nå</p>
-          <p style={{ fontWeight: 700, fontSize: "1rem" }}>
-            {formatDuration(predicted)}
-          </p>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ fontSize: "0.62rem", color: "var(--blue-200)" }}>Avvik</p>
-          <p
-            style={{
-              fontWeight: 700,
-              fontSize: "1rem",
-              color: ahead ? "#6CE9A6" : "#FDA29B",
-            }}
-          >
-            {ahead ? "−" : "+"}
-            {formatDuration(Math.abs(deviation))}
-          </p>
-        </div>
-      </div>
-      <p style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--blue-200)" }}>
-        {ahead
-          ? "Prognosen ligger foran måltiden på gjeldende form."
-          : "Prognosen ligger bak måltiden — formen må heves."}
-      </p>
-    </div>
-  );
-}
-
-function GoalCard({
-  goal,
-  onEdit,
-  onDelete,
-}: {
-  goal: Goal;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const days = daysUntil(goal.eventDate);
-  return (
-    <Card style={{ padding: "0.65rem 0.75rem" }}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p style={{ fontWeight: 600, fontSize: "0.92rem" }}>{goal.title}</p>
-          <p style={{ color: "var(--gray-500)", fontSize: "0.78rem" }}>
-            {formatDate(goal.eventDate)} · {formatDuration(goal.targetTimeS)}
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          <span
-            style={{
-              fontSize: "0.76rem",
-              fontWeight: 600,
-              color: days < 0 ? "var(--gray-400)" : "var(--blue-main)",
-            }}
-          >
-            {days < 0 ? "fullført" : `${days} d`}
-          </span>
-          <button type="button" onClick={onEdit} aria-label="Rediger" style={{ color: "var(--gray-400)", padding: 4 }}>
-            <i className="bx bx-edit-alt" aria-hidden="true" />
-          </button>
-          <button type="button" onClick={onDelete} aria-label="Slett" style={{ color: "var(--gray-400)", padding: 4 }}>
-            <i className="bx bx-trash" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-    </Card>
   );
 }
 

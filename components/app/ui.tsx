@@ -69,7 +69,7 @@ export function Card({
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2
+        <h2
       className="text-[0.72rem] uppercase"
       style={{
         letterSpacing: "0.12em",

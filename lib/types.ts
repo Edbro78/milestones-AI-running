@@ -66,6 +66,8 @@ export type DailyRecord = {
   source: "garmin" | "manual";
   /** Gjennomført økt (fritekst), null hvis ingen. */
   completed?: string | null;
+  /** Løpt distanse denne dagen (km). */
+  distanceKm?: number;
 };
 
 /* ---- Typer brukt av eksisterende Garmin-klient (garmin-connect) ---- */

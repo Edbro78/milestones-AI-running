@@ -20,6 +20,8 @@ export type GarminSyncResult = {
   connected: boolean;
   lastSync: string;
   records: DailyRecord[];
+  hrvBaseline: number | null;
+  rhrBaseline: number | null;
   error?: string;
 };
 
@@ -40,6 +42,12 @@ export async function syncGarminRecords(days = 28): Promise<GarminSyncResult> {
   const rhrBaseline = todaySnap?.resting_hr_7d_avg ?? rhrToday;
 
   const hrvSeries = history.map((d) => d.hrv).filter((v): v is number => v != null);
+  const recentHrv = hrvSeries.slice(-7);
+  const hrvBaseline =
+    todaySnap?.hrv_7d_avg ??
+    (recentHrv.length
+      ? Math.round((recentHrv.reduce((a, b) => a + b, 0) / recentHrv.length) * 10) / 10
+      : null);
   // For z-skår trenger vi historikk før hver dag — bygg kumulativt
   const loads = history.map((d) => {
     // Bruk km som belastningsproxy når Garmin ikke leverer training_load i historikk
@@ -94,6 +102,7 @@ export async function syncGarminRecords(days = 28): Promise<GarminSyncResult> {
       completed: activityByDate.get(day.date) ?? (day.distance_km > 0
         ? `løping, ${day.distance_km.toFixed(1)} km`
         : null),
+      distanceKm: day.distance_km > 0 ? round(day.distance_km, 1) : 0,
     };
   });
 
@@ -101,6 +110,8 @@ export async function syncGarminRecords(days = 28): Promise<GarminSyncResult> {
     connected: true,
     lastSync: new Date().toISOString(),
     records,
+    hrvBaseline: hrvBaseline != null ? hrvBaseline : null,
+    rhrBaseline: rhrBaseline != null ? rhrBaseline : null,
   };
 }
 

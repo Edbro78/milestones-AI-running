@@ -4,16 +4,19 @@ import {
   garminCredentialsConfigured,
   syncGarminRecords,
 } from "@/lib/garmin/live";
+import { formatGarminUserError, isRateLimitError } from "@/lib/garmin/errors";
 import { getMockRecords } from "@/lib/mockData";
 
 export const maxDuration = 120;
+
+let rateLimitedUntil = 0;
 
 /**
  * Synkroniserer Garmin og returnerer evaluerte dagsrader.
  * Mock brukes kun når GARMIN_MOCK=true — aldri som falsk «tilkoblet»-status.
  */
 export async function GET(request: Request) {
-  const { errorResponse } = await requireUser();
+  const { user, supabase, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
 
   const url = new URL(request.url);
@@ -30,6 +33,8 @@ export async function GET(request: Request) {
       mock: true,
       lastSync: null,
       records: getMockRecords(days),
+      hrvBaseline: null,
+      rhrBaseline: null,
       message: "GARMIN_MOCK=true — viser demodata, ikke live Garmin.",
     });
   }
@@ -48,25 +53,62 @@ export async function GET(request: Request) {
     );
   }
 
-  try {
-    const result = await syncGarminRecords(days);
-    return NextResponse.json({
-      connected: result.connected,
-      mock: false,
-      lastSync: result.lastSync,
-      records: result.records,
-    });
-  } catch (err) {
-    console.error("[api/garmin/sync]", err);
+  if (Date.now() < rateLimitedUntil) {
     return NextResponse.json(
       {
         connected: false,
         mock: false,
         lastSync: null,
         records: [],
-        error: err instanceof Error ? err.message : "Garmin-feil",
+        error: formatGarminUserError("429"),
       },
-      { status: 502 },
+      { status: 429 },
+    );
+  }
+
+  try {
+    const result = await syncGarminRecords(days);
+
+    if (user && (result.hrvBaseline != null || result.rhrBaseline != null)) {
+      const patch: Record<string, number | string> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (result.hrvBaseline != null) patch.hrv_baseline = result.hrvBaseline;
+      if (result.rhrBaseline != null) patch.rhr_baseline = result.rhrBaseline;
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        {
+          id: user.id,
+          ...patch,
+        },
+        { onConflict: "id" },
+      );
+      if (profileError) {
+        console.warn("[api/garmin/sync] kunne ikke lagre Garmin-baselines", profileError);
+      }
+    }
+
+    return NextResponse.json({
+      connected: result.connected,
+      mock: false,
+      lastSync: result.lastSync,
+      records: result.records,
+      hrvBaseline: result.hrvBaseline,
+      rhrBaseline: result.rhrBaseline,
+    });
+  } catch (err) {
+    console.error("[api/garmin/sync]", err);
+    if (isRateLimitError(err)) {
+      rateLimitedUntil = Date.now() + 60_000;
+    }
+    return NextResponse.json(
+      {
+        connected: false,
+        mock: false,
+        lastSync: null,
+        records: [],
+        error: formatGarminUserError(err),
+      },
+      { status: isRateLimitError(err) ? 429 : 502 },
     );
   }
 }

@@ -69,3 +69,17 @@ export function daysUntil(iso: string, from = new Date()): number {
   const ms = target.getTime() - base.getTime();
   return Math.round(ms / (1000 * 60 * 60 * 24));
 }
+
+/** Km denne dagen — strukturert felt, ellers parse fra «12,3 km» i completed. */
+export function recordDistanceKm(record: {
+  distanceKm?: number;
+  completed?: string | null;
+}): number {
+  if (typeof record.distanceKm === "number" && Number.isFinite(record.distanceKm)) {
+    return Math.max(0, record.distanceKm);
+  }
+  const match = record.completed?.match(/(\d+(?:[.,]\d+)?)\s*km/i);
+  if (!match) return 0;
+  const n = Number(match[1].replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+}

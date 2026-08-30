@@ -180,6 +180,9 @@ function toDailyRecords(raw: RawDay[], visibleDays: number): DailyRecord[] {
       completed: day.activity
         ? `${day.activity.type}, ${(day.activity.distance_m / 1000).toFixed(1)} km`
         : null,
+      distanceKm: day.activity
+        ? Math.round((day.activity.distance_m / 1000) * 10) / 10
+        : 0,
     });
   }
 

@@ -68,7 +68,7 @@ async function main() {
     name: MOCK_PROFILE.name,
     birth_date: MOCK_PROFILE.birthDate,
     weight_kg: MOCK_PROFILE.weightKg,
-    hr_max: MOCK_PROFILE.hrMax,
+    max_hr: MOCK_PROFILE.hrMax,
     hr_threshold: MOCK_PROFILE.hrThreshold,
     hrv_baseline: MOCK_PROFILE.hrvBaseline,
     rhr_baseline: MOCK_PROFILE.rhrBaseline,
