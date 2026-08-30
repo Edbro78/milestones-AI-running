@@ -183,6 +183,9 @@ function toDailyRecords(raw: RawDay[], visibleDays: number): DailyRecord[] {
       distanceKm: day.activity
         ? Math.round((day.activity.distance_m / 1000) * 10) / 10
         : 0,
+      hrvMs: day.hrv,
+      recoveryScore: clamp(Math.round(day.body_battery * 0.6 + day.sleep_score * 0.4), 0, 100),
+      floors: Math.round(day.steps / 900),
     });
   }
 

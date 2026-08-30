@@ -9,7 +9,8 @@ import {
   fetchRecentActivities,
 } from "@/lib/garmin/client";
 import { evaluate } from "@/lib/trafficLight";
-import type { DailyRecord, Metrics } from "@/lib/types";
+import type { DailyRecord, DayMetrics, Metrics } from "@/lib/types";
+import { daysBetween, todayISO } from "@/lib/time";
 
 const round = (n: number, d = 0) => {
   const f = 10 ** d;
@@ -25,16 +26,33 @@ export type GarminSyncResult = {
   error?: string;
 };
 
+let memoryHistory: DayMetrics[] = [];
+
+function mergeHistory(existing: DayMetrics[], incoming: DayMetrics[]): DayMetrics[] {
+  const map = new Map(existing.map((d) => [d.date, d]));
+  for (const day of incoming) map.set(day.date, day);
+  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /**
  * Henter Garmin-historikk og bygger evaluerte dagsrader.
- * Krever GARMIN_EMAIL / GARMIN_PASSWORD (eller lagrede tokens).
+ * `fromISO` = hent bare fra denne datoen (inkl.) — bruk cache for eldre dager.
  */
-export async function syncGarminRecords(days = 28): Promise<GarminSyncResult> {
-  const [history, activities, todaySnap] = await Promise.all([
-    fetchHistoryMetrics(days),
-    fetchRecentActivities(days).catch(() => []),
-    fetchDailySnapshot().catch(() => null),
+export async function syncGarminRecords(
+  days = 60,
+  fromISO?: string,
+): Promise<GarminSyncResult> {
+  const incremental = Boolean(fromISO);
+  const [freshHistory, activities, todaySnap] = await Promise.all([
+    fetchHistoryMetrics(days, fromISO),
+    fetchRecentActivities(incremental ? Math.max(3, daysBetween(fromISO!, todayISO()) + 1) : days).catch(
+      () => [],
+    ),
+    incremental ? Promise.resolve(null) : fetchDailySnapshot().catch(() => null),
   ]);
+
+  const history = mergeHistory(memoryHistory, freshHistory).slice(-days);
+  memoryHistory = history;
 
   // Bygg RHR-serie: bruk dagens snapshot der vi har den; ellers ukjent.
   // Historikk-endepunktet leverer ikke RHR per dag i dagens klient.
@@ -92,6 +110,16 @@ export async function syncGarminRecords(days = 28): Promise<GarminSyncResult> {
 
     const result = evaluate(metrics);
 
+    const recoveryScore =
+      day.recovery ??
+      (day.body_battery != null || day.sleep_score != null
+        ? Math.round(
+            ((day.body_battery ?? day.sleep_score ?? 50) +
+              (day.sleep_score ?? day.body_battery ?? 50)) /
+              2,
+          )
+        : null);
+
     return {
       date: day.date,
       metrics,
@@ -103,6 +131,9 @@ export async function syncGarminRecords(days = 28): Promise<GarminSyncResult> {
         ? `løping, ${day.distance_km.toFixed(1)} km`
         : null),
       distanceKm: day.distance_km > 0 ? round(day.distance_km, 1) : 0,
+      hrvMs: day.hrv,
+      recoveryScore,
+      floors: day.floors,
     };
   });
 

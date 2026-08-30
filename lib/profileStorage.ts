@@ -1,4 +1,9 @@
 import { MOCK_PROFILE, type Profile } from "@/lib/mockData";
+import {
+  emptyWeekPlan,
+  hasPlannedSessions,
+  parseWeekPlan,
+} from "@/lib/weekPlan";
 
 const STORAGE_KEY = "milestones_profile_v1";
 
@@ -12,6 +17,7 @@ export type ProfileRow = {
   weekly_km: number | null;
   hrv_baseline: number | null;
   rhr_baseline: number | null;
+  weekly_structure: string | null;
 };
 
 export function ageFromBirthDate(birthDate: string): number {
@@ -62,6 +68,9 @@ export function rowToProfile(row: Partial<ProfileRow> | null | undefined): Parti
     ...(row.weekly_km != null ? { weeklyKm: Number(row.weekly_km) } : {}),
     hrvBaseline: row.hrv_baseline != null ? Number(row.hrv_baseline) : null,
     rhrBaseline: row.rhr_baseline != null ? Number(row.rhr_baseline) : null,
+    ...(row.weekly_structure != null
+      ? { weeklyStructure: parseWeekPlan(row.weekly_structure) }
+      : {}),
   };
 }
 
@@ -81,6 +90,9 @@ export function mergeProfile(
       remote.hrvBaseline !== undefined ? remote.hrvBaseline : (base.hrvBaseline ?? null),
     rhrBaseline:
       remote.rhrBaseline !== undefined ? remote.rhrBaseline : (base.rhrBaseline ?? null),
+    weeklyStructure: hasPlannedSessions(remote.weeklyStructure)
+      ? (remote.weeklyStructure ?? emptyWeekPlan())
+      : (base.weeklyStructure ?? emptyWeekPlan()),
   };
 }
 
@@ -92,6 +104,7 @@ export function userFieldsForDb(profile: Profile) {
     max_hr: profile.hrMax,
     hr_threshold: profile.hrThreshold,
     weekly_km: profile.weeklyKm,
+    weekly_structure: JSON.stringify(profile.weeklyStructure ?? emptyWeekPlan()),
     updated_at: new Date().toISOString(),
   };
 }

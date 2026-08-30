@@ -1,5 +1,6 @@
 import { mockDailyRecords } from "@/lib/garmin/mock";
 import type { DailyRecord } from "@/lib/types";
+import { emptyWeekPlan, type WeekPlan } from "@/lib/weekPlan";
 
 export type Profile = {
   name: string;
@@ -10,6 +11,7 @@ export type Profile = {
   hrvBaseline: number | null;
   rhrBaseline: number | null;
   weeklyKm: number;
+  weeklyStructure: WeekPlan;
 };
 
 export type Goal = {
@@ -29,6 +31,7 @@ export const MOCK_PROFILE: Profile = {
   hrvBaseline: 62,
   rhrBaseline: 48,
   weeklyKm: 78,
+  weeklyStructure: emptyWeekPlan(),
 };
 
 export const MOCK_GOALS: Goal[] = [
@@ -41,7 +44,7 @@ export const MOCK_GOALS: Goal[] = [
   },
 ];
 
-/** 28 dagers historikk fra mock-provideren (deterministisk). */
-export function getMockRecords(days = 28): DailyRecord[] {
+/** Historikk fra mock-provideren (deterministisk). */
+export function getMockRecords(days = 60): DailyRecord[] {
   return mockDailyRecords(days);
 }

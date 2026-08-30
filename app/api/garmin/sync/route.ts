@@ -20,10 +20,13 @@ export async function GET(request: Request) {
   if (errorResponse) return errorResponse;
 
   const url = new URL(request.url);
-  const daysParam = Number(url.searchParams.get("days") || "28");
+  const daysParam = Number(url.searchParams.get("days") || "60");
   const days = Number.isFinite(daysParam)
     ? Math.min(90, Math.max(7, daysParam))
-    : 28;
+    : 60;
+  const sinceRaw = url.searchParams.get("since");
+  const since =
+    sinceRaw && /^\d{4}-\d{2}-\d{2}$/.test(sinceRaw) ? sinceRaw : undefined;
 
   const useMock = process.env.GARMIN_MOCK === "true";
 
@@ -67,7 +70,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await syncGarminRecords(days);
+    const result = await syncGarminRecords(days, since);
 
     if (user && (result.hrvBaseline != null || result.rhrBaseline != null)) {
       const patch: Record<string, number | string> = {

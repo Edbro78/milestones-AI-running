@@ -1,5 +1,6 @@
 import { GarminConnect } from "garmin-connect";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { extractBodyBatteryNow } from "@/lib/garmin/bodyBattery";
 import {
   isMfaError,
   isRateLimitError,
@@ -223,7 +224,7 @@ export async function fetchDailySnapshot(date = todayISO()): Promise<GarminSnaps
         { params: { startDate: date, endDate: date } },
       );
       raw.bodyBattery = bb;
-      body_battery = extractBodyBatteryLevel(
+      body_battery = extractBodyBatteryNow(
         Array.isArray(bb) ? bb.find((row) => rowDate(row) === date) ?? bb[bb.length - 1] : null,
       );
     } catch (err) {
@@ -352,6 +353,7 @@ export function provisionalTrafficLight(day: {
   body_battery: number | null;
   sleep_score: number | null;
   hrv: number | null;
+  recovery?: number | null;
 }): Trafikklys {
   let score = 0;
   let signals = 0;
@@ -371,6 +373,11 @@ export function provisionalTrafficLight(day: {
     // Absolute HRV is personal; treat very low as red-ish, higher as green-ish.
     if (day.hrv >= 50) score += 1;
     else if (day.hrv < 25) score -= 1;
+  }
+  if (day.recovery != null) {
+    signals += 1;
+    if (day.recovery >= 70) score += 1;
+    else if (day.recovery < 40) score -= 1;
   }
 
   if (signals === 0) return "gult";
@@ -418,26 +425,6 @@ function rowDate(row: unknown): string {
   return (r.calendarDate || r.date || "").slice(0, 10);
 }
 
-/** Peak Body Battery for the day (typical post-sleep high), else last sample. */
-function extractBodyBatteryLevel(row: unknown): number | null {
-  if (!row || typeof row !== "object") return null;
-  const r = row as {
-    bodyBatteryValuesArray?: Array<number | null>[];
-    charged?: number;
-    bodyBatteryHighestValue?: number;
-  };
-  const values = r.bodyBatteryValuesArray;
-  if (Array.isArray(values) && values.length) {
-    const levels = values
-      .map((v) => (Array.isArray(v) ? v[1] : null))
-      .filter((n): n is number => typeof n === "number");
-    if (levels.length) return Math.max(...levels);
-  }
-  if (typeof r.bodyBatteryHighestValue === "number") return r.bodyBatteryHighestValue;
-  if (typeof r.charged === "number") return r.charged;
-  return null;
-}
-
 type GarminGet = {
   get: <T>(url: string, data?: unknown) => Promise<T>;
 };
@@ -457,7 +444,7 @@ async function fetchBodyBatteryByDate(
       if (!Array.isArray(bb)) continue;
       for (const row of bb) {
         const date = rowDate(row);
-        const value = extractBodyBatteryLevel(row);
+        const value = extractBodyBatteryNow(row);
         if (date && value != null) map.set(date, value);
       }
     } catch (err) {
@@ -525,24 +512,150 @@ async function fetchFloorsByDate(
   return map;
 }
 
-/** Last N days of body battery, sleep, HRV, km, steps and floors. */
-export async function fetchHistoryMetrics(days = 60): Promise<DayMetrics[]> {
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asRows(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    const o = data as Record<string, unknown>;
+    for (const key of [
+      "entries",
+      "values",
+      "hrvSummaries",
+      "dailySleepList",
+      "calendarDays",
+    ]) {
+      if (Array.isArray(o[key])) return o[key] as unknown[];
+    }
+  }
+  return [];
+}
+
+async function fetchHrvByDate(
+  client: GarminGet,
+  startISO: string,
+  endISO: string,
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  for (const [from, to] of dateChunks(startISO, endISO, 28)) {
+    try {
+      const rows = await client.get<unknown>(
+        `https://connectapi.garmin.com/hrv-service/hrv/daily/${from}/${to}`,
+      );
+      const list = asRows(rows);
+      for (const row of list) {
+        if (!row || typeof row !== "object") continue;
+        const r = row as {
+          calendarDate?: string;
+          hrvSummary?: { lastNightAvg?: number };
+          lastNightAvg?: number;
+        };
+        const date = rowDate(r);
+        const hrv = asNumber(r.hrvSummary?.lastNightAvg ?? r.lastNightAvg);
+        if (date && hrv != null) map.set(date, hrv);
+      }
+    } catch (err) {
+      console.warn(`[garmin] HRV chunk ${from}..${to} failed`, err);
+    }
+  }
+  return map;
+}
+
+async function fetchSleepByDate(
+  client: GarminGet,
+  startISO: string,
+  endISO: string,
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  for (const [from, to] of dateChunks(startISO, endISO, 28)) {
+    try {
+      const rows = await client.get<unknown>(
+        `https://connectapi.garmin.com/wellness-service/stats/sleep/daily/${from}/${to}`,
+      );
+      const list = asRows(rows);
+      for (const row of list) {
+        if (!row || typeof row !== "object") continue;
+        const r = row as {
+          calendarDate?: string;
+          values?: { sleepScore?: number; overallSleepScore?: number };
+          sleepScore?: number;
+          overallSleepScore?: number;
+        };
+        const date = rowDate(r);
+        const score = asNumber(
+          r.values?.sleepScore ?? r.values?.overallSleepScore ?? r.sleepScore ?? r.overallSleepScore,
+        );
+        if (date && score != null) map.set(date, score);
+      }
+    } catch (err) {
+      console.warn(`[garmin] sleep chunk ${from}..${to} failed`, err);
+    }
+  }
+  return map;
+}
+
+function extractReadinessScore(row: unknown): number | null {
+  if (!row || typeof row !== "object") return null;
+  const r = row as { score?: number; trainingReadiness?: number };
+  return asNumber(r.score ?? r.trainingReadiness);
+}
+
+async function fetchReadinessByDate(
+  client: GarminGet,
+  startISO: string,
+  endISO: string,
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  for (const [from, to] of dateChunks(startISO, endISO, 28)) {
+    try {
+      const rows = await client.get<unknown>(
+        `https://connectapi.garmin.com/metrics-service/metrics/trainingreadiness/${from}/${to}`,
+      );
+      const list = asRows(rows);
+      for (const row of list) {
+        const date = rowDate(row);
+        const score = extractReadinessScore(row);
+        if (date && score != null) map.set(date, score);
+      }
+    } catch (err) {
+      console.warn(`[garmin] readiness chunk ${from}..${to} failed`, err);
+    }
+  }
+  return map;
+}
+
+/** Last N days, or from `fromISO` through today when doing an incremental sync. */
+export async function fetchHistoryMetrics(
+  days = 60,
+  fromISO?: string,
+): Promise<DayMetrics[]> {
   return withGarmin(async (client) => {
     const end = new Date();
-    const start = daysAgo(days - 1);
+    const start = fromISO
+      ? new Date(fromISO + "T12:00:00")
+      : daysAgo(days - 1);
+    if (start > end) start.setTime(end.getTime());
     const startISO = formatDate(start);
     const endISO = formatDate(end);
 
     const dates: string[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      dates.push(formatDate(daysAgo(i)));
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      dates.push(formatDate(cursor));
+      cursor.setDate(cursor.getDate() + 1);
     }
 
-    const [bbByDate, stepsByDate, floorsByDate] = await Promise.all([
-      fetchBodyBatteryByDate(client, startISO, endISO),
-      fetchStepsByDate(client, startISO, endISO),
-      fetchFloorsByDate(client, startISO, endISO),
-    ]);
+    const [bbByDate, stepsByDate, floorsByDate, hrvByDate, sleepByDate, recByDate] =
+      await Promise.all([
+        fetchBodyBatteryByDate(client, startISO, endISO),
+        fetchStepsByDate(client, startISO, endISO),
+        fetchFloorsByDate(client, startISO, endISO),
+        fetchHrvByDate(client, startISO, endISO),
+        fetchSleepByDate(client, startISO, endISO),
+        fetchReadinessByDate(client, startISO, endISO),
+      ]);
 
     const kmByDate = new Map<string, number>();
     try {
@@ -568,35 +681,80 @@ export async function fetchHistoryMetrics(days = 60): Promise<DayMetrics[]> {
       console.warn("[garmin] history activities failed", err);
     }
 
-    const daily = await mapPool(dates, 6, async (date) => {
-      let sleep_score: number | null = null;
-      let hrv: number | null = null;
+    // Dagens tall: bruk verdien nå (user summary), ikke morgentopp / døgnstart.
+    const today = formatDate(end);
+    if (dates.includes(today)) {
+      try {
+        const summary = await client.get<Record<string, unknown>>(
+          `https://connectapi.garmin.com/usersummary-service/usersummary/daily/${today}`,
+        );
+        const liveBb = extractBodyBatteryNow(summary);
+        if (liveBb != null) bbByDate.set(today, liveBb);
+        const liveSteps = asNumber(summary.totalSteps);
+        if (liveSteps != null) stepsByDate.set(today, liveSteps);
+        const liveFloors = asNumber(
+          summary.floorsAscended ??
+            summary.totalFloors ??
+            (summary as { wellnessFloorsAscended?: number }).wellnessFloorsAscended,
+        );
+        if (liveFloors != null) floorsByDate.set(today, liveFloors);
+      } catch (err) {
+        console.warn("[garmin] current-day summary failed", err);
+      }
+    }
 
+    const fallbackDates = dates.slice(-10);
+    const missingSleep = fallbackDates.filter((d) => !sleepByDate.has(d));
+    const missingHrv = fallbackDates.filter((d) => !hrvByDate.has(d));
+    const missingRec = fallbackDates.filter((d) => !recByDate.has(d));
+
+    await mapPool(missingSleep, 4, async (date) => {
       try {
         const sleep = await client.getSleepData(new Date(date + "T12:00:00"));
-        sleep_score =
+        const score =
           (sleep as { dailySleepDTO?: { sleepScores?: { overall?: { value?: number } } } })
             ?.dailySleepDTO?.sleepScores?.overall?.value ?? null;
+        if (typeof score === "number") sleepByDate.set(date, score);
       } catch {
         // skip day
       }
+    });
 
+    await mapPool(missingHrv, 4, async (date) => {
       try {
         const hrvData = await client.get<Record<string, unknown>>(
           `https://connectapi.garmin.com/hrv-service/hrv/${date}`,
         );
         const summary = hrvData?.hrvSummary as { lastNightAvg?: number } | undefined;
-        hrv = summary?.lastNightAvg ?? null;
+        if (typeof summary?.lastNightAvg === "number") {
+          hrvByDate.set(date, summary.lastNightAvg);
+        }
       } catch {
         // skip day
       }
+    });
 
+    await mapPool(missingRec, 4, async (date) => {
+      try {
+        const readiness = await client.get<unknown>(
+          `https://connectapi.garmin.com/training-readiness-service/trainingReadiness/${date}`,
+        );
+        const row = Array.isArray(readiness) ? readiness[0] : readiness;
+        const score = extractReadinessScore(row);
+        if (score != null) recByDate.set(date, score);
+      } catch {
+        // skip day
+      }
+    });
+
+    return dates.map((date) => {
       const body_battery = bbByDate.get(date) ?? null;
+      const sleep_score = sleepByDate.get(date) ?? null;
+      const hrv = hrvByDate.get(date) ?? null;
+      const recovery = recByDate.get(date) ?? null;
       const distance_km = kmByDate.get(date) ?? 0;
       const steps = stepsByDate.get(date) ?? null;
       const floors = floorsByDate.get(date) ?? null;
-      const trafikklys = provisionalTrafficLight({ body_battery, sleep_score, hrv });
-
       return {
         date,
         body_battery,
@@ -605,10 +763,14 @@ export async function fetchHistoryMetrics(days = 60): Promise<DayMetrics[]> {
         distance_km,
         steps,
         floors,
-        trafikklys,
+        recovery,
+        trafikklys: provisionalTrafficLight({
+          body_battery,
+          sleep_score,
+          hrv,
+          recovery,
+        }),
       };
     });
-
-    return daily;
   });
 }

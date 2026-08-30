@@ -13,18 +13,45 @@ import {
   parseTimeToSeconds,
   recordDistanceKm,
 } from "@/lib/format";
-import { marathonFormTrend, weekTowardGoal } from "@/lib/prognosis";
-import { computeSubscores } from "@/lib/trafficLight";
+import {
+  dailyGoalEstimateSeconds,
+  marathonFormTrend,
+  rollingWeeklyKm,
+} from "@/lib/prognosis";
+import {
+  reportTrafficLight,
+  SIGNAL_META,
+} from "@/lib/reportLight";
 import type { Profile, Goal } from "@/lib/mockData";
+import {
+  DISTANCE_DEFAULT_KM,
+  DISTANCE_LABEL,
+  EFFORT_LABEL,
+  WEEKDAYS,
+  isInterval,
+  hasPlannedSessions,
+  loadWeekPlan,
+  plannedForToday,
+  plannedWeeklyKm,
+  saveWeekPlan,
+  sessionSummary,
+  todayWeekdayIndex,
+  type DistanceKind,
+  type EffortKind,
+  type PlannedSession,
+  type WeekdayKey,
+} from "@/lib/weekPlan";
 import { ageFromBirthDate } from "@/lib/profileStorage";
+import { CATEGORY_ORDER } from "@/lib/trafficLight";
 import type { DailyRecord, MetricKey } from "@/lib/types";
+import type { MilestoneLog } from "@/lib/milestones";
 import type { SheetApi, GarminStatus } from "@/components/app/AppShell";
 import { GoalTrendChart } from "@/components/app/GoalTrendChart";
 import {
   Card,
   CategoryDot,
+  CategoryScaleLegend,
   MiniStat,
-  ScoreBar,
   SectionTitle,
   Sparkline,
 } from "@/components/app/ui";
@@ -275,6 +302,7 @@ function ProfileForm({
       hrvBaseline: initial.hrvBaseline,
       rhrBaseline: initial.rhrBaseline,
       weeklyKm: num(weeklyKm, initial.weeklyKm),
+      weeklyStructure: initial.weeklyStructure,
     });
   }
 
@@ -361,82 +389,184 @@ function ProfileForm({
 
 /* ============================ Rapport ============================ */
 
+function dash(value: number | null | undefined, decimals = 0, suffix = ""): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return `${formatNumber(value, decimals)}${suffix}`;
+}
+
 export function ReportScreen({
   records,
-  goal,
   weeklyKm,
+  lastSync,
+  sheet,
+  onOpenHistory,
+  hrMax = null,
 }: {
   records: DailyRecord[];
   goal?: Goal | null;
   weeklyKm?: number;
+  lastSync?: string | null;
+  sheet: SheetApi;
+  onOpenHistory?: () => void;
+  hrMax?: number | null;
 }) {
+  const [weekHover, setWeekHover] = useState<DailyRecord | null>(null);
   const week = records.slice(-7);
   const weekKm = week.reduce((s, r) => s + recordDistanceKm(r), 0);
-  const verdict = goal
-    ? weekTowardGoal(records, goal, weeklyKm)
-    : null;
-
-  const verdictColor =
-    verdict?.direction === "closer"
-      ? "var(--success-700)"
-      : verdict?.direction === "further"
-        ? "var(--error-700)"
-        : "var(--gray-700)";
-  const verdictBg =
-    verdict?.direction === "closer"
-      ? "var(--success-bg)"
-      : verdict?.direction === "further"
-        ? "var(--error-bg)"
-        : "var(--blue-50)";
-  const verdictBorder =
-    verdict?.direction === "closer"
-      ? "var(--success-border)"
-      : verdict?.direction === "further"
-        ? "var(--error-border)"
-        : "var(--blue-200)";
+  const latest = records[records.length - 1];
+  const light = reportTrafficLight(records);
+  const meta = SIGNAL_META[light.light];
+  const rows: { label: string; value: string }[] = latest
+    ? [
+        { label: "Body battery", value: dash(latest.metrics.body_battery) },
+        { label: "HRV", value: dash(latest.hrvMs, 0, " ms") },
+        { label: "Søvnskår", value: dash(latest.metrics.sleep_score) },
+        { label: "Km løpt", value: dash(recordDistanceKm(latest), 1, " km") },
+        { label: "Restitusjon", value: dash(latest.recoveryScore) },
+        { label: "Etasjer", value: dash(latest.floors, 0) },
+        { label: "Skritt", value: dash(latest.metrics.steps) },
+      ]
+    : [];
 
   return (
     <div className="flex h-full flex-col gap-2.5">
-      <Card style={{ padding: "0.75rem" }}>
-        <div className="flex items-baseline justify-between gap-2" style={{ marginBottom: "0.55rem" }}>
-          <h2
-            className="text-[0.72rem] uppercase"
+      <Card
+        style={{
+          padding: "0.8rem 0.85rem",
+          background: meta.bg,
+          borderColor: meta.border,
+        }}
+      >
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
             style={{
-              letterSpacing: "0.12em",
-              color: "var(--gray-500)",
-              fontWeight: 600,
-              margin: 0,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: meta.dot,
+              flex: "none",
             }}
-          >
-            Volum og trafikklys
-          </h2>
-          <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--sp-navy)" }}>
+          />
+          <div className="min-w-0">
+            <p
+              style={{
+                fontSize: "0.62rem",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+                color: meta.text,
+                margin: 0,
+              }}
+            >
+              Trafikklys · {records.length} dager
+            </p>
+            <p
+              style={{
+                margin: "0.15rem 0 0",
+                fontWeight: 700,
+                fontSize: "1.15rem",
+                color: meta.text,
+              }}
+            >
+              {light.headline}
+            </p>
+          </div>
+        </div>
+        <p
+          style={{
+            margin: "0.45rem 0 0",
+            color: "var(--gray-700)",
+            fontSize: "0.8rem",
+            lineHeight: 1.4,
+          }}
+        >
+          {light.detail}
+        </p>
+      </Card>
+
+      <Card style={{ padding: "0.65rem 0.85rem", flex: 1, minHeight: 0 }}>
+        <SectionTitle>
+          {lastSync
+            ? `Ved synk ${new Date(lastSync).toLocaleString("nb-NO", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}`
+            : "Ved siste synk"}
+        </SectionTitle>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            columnGap: "0.85rem",
+          }}
+        >
+          {rows.map((row, i) => (
+            <div
+              key={row.label}
+              className="flex items-center justify-between"
+              style={{
+                padding: "0.28rem 0",
+                borderBottom: i < rows.length - 2 ? "1px solid var(--border)" : "none",
+                gridColumn: row.label === "Skritt" ? "1 / -1" : undefined,
+              }}
+            >
+              <span style={{ color: "var(--gray-600)", fontSize: "0.8rem" }}>
+                {row.label}
+              </span>
+              <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card style={{ padding: "0.65rem 0.75rem", position: "relative" }}>
+        <div className="flex items-baseline justify-between gap-2" style={{ marginBottom: "0.4rem" }}>
+          <SectionTitle>Siste 7 dager</SectionTitle>
+          <p style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--sp-navy)", margin: 0 }}>
             {formatNumber(weekKm, 1)} km
             {weeklyKm ? (
-              <span style={{ fontWeight: 500, color: "var(--gray-500)", fontSize: "0.75rem" }}>
+              <span style={{ fontWeight: 500, color: "var(--gray-500)", fontSize: "0.72rem" }}>
                 {" "}
-                / {formatNumber(weeklyKm, 0)} km
+                / {formatNumber(weeklyKm, 0)}
               </span>
             ) : null}
           </p>
         </div>
-        <div className="flex gap-1">
+        <div
+          className="flex gap-1"
+          onMouseLeave={() => setWeekHover(null)}
+        >
           {week.map((r) => {
-            const c = CATEGORIES[r.category];
             const km = recordDistanceKm(r);
+            const c = CATEGORIES[r.category];
             return (
               <div
                 key={r.date}
                 className="flex flex-1 flex-col items-center gap-1"
-                title={`${formatDate(r.date)} · ${c.label} · ${formatNumber(km, 1)} km`}
+                style={{ cursor: "default", position: "relative" }}
+                onMouseEnter={() => setWeekHover(r)}
+                onFocus={() => setWeekHover(r)}
+                onBlur={() => setWeekHover(null)}
+                tabIndex={0}
+                aria-label={`${formatDate(r.date)} · ${c.label} · ${formatNumber(km, 1)} km`}
               >
                 <span style={{ fontSize: "0.58rem", color: "var(--gray-400)" }}>
                   {formatShortDay(r.date).split(" ")[0].replace(".", "")}
                 </span>
-                <CategoryDot category={r.category} size={14} />
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    background: c.dot,
+                    boxShadow: weekHover?.date === r.date ? `0 0 0 3px ${c.border}` : undefined,
+                  }}
+                />
                 <span
                   style={{
-                    fontSize: "0.68rem",
+                    fontSize: "0.66rem",
                     fontWeight: 600,
                     color: "var(--sp-navy)",
                     lineHeight: 1.1,
@@ -448,67 +578,62 @@ export function ReportScreen({
             );
           })}
         </div>
-        <p
-          style={{
-            margin: "0.35rem 0 0",
-            textAlign: "right",
-            fontSize: "0.62rem",
-            color: "var(--gray-400)",
-          }}
-        >
-          km per dag
-        </p>
+        {weekHover ? (
+          <div
+            role="tooltip"
+            style={{
+              position: "absolute",
+              left: 8,
+              right: 8,
+              bottom: "calc(100% - 4px)",
+              zIndex: 20,
+              background: "var(--white)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-md)",
+              boxShadow: "var(--shadow-sm)",
+              padding: "0.55rem 0.55rem 0.45rem",
+              maxHeight: 280,
+              overflowY: "auto",
+              pointerEvents: "none",
+            }}
+          >
+            <CategoryScaleLegend
+              active={weekHover.category}
+              heading={`${formatDate(weekHover.date)} · ${CATEGORIES[weekHover.category].label} · skår ${weekHover.score}`}
+            />
+          </div>
+        ) : null}
       </Card>
 
-      {verdict ? (
-        <Card
-          style={{
-            padding: "0.85rem",
-            flex: 1,
-            minHeight: 0,
-            background: verdictBg,
-            borderColor: verdictBorder,
-          }}
-        >
-          <p
-            style={{
-              fontSize: "0.62rem",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              fontWeight: 600,
-              color: verdictColor,
-            }}
-          >
-            Mot {goal?.title}
-          </p>
-          <p
-            style={{
-              marginTop: "0.35rem",
-              fontWeight: 700,
-              fontSize: "1.15rem",
-              color: verdictColor,
-            }}
-          >
-            {verdict.headline}
-          </p>
-          <p
-            style={{
-              marginTop: "0.45rem",
-              color: "var(--gray-700)",
-              fontSize: "0.84rem",
-              lineHeight: 1.45,
-            }}
-          >
-            {verdict.detail}
-          </p>
-        </Card>
-      ) : (
-        <Card style={{ padding: "0.85rem", flex: 1 }}>
-          <p style={{ color: "var(--gray-500)", fontSize: "0.88rem" }}>
-            Sett et hovedmål for å se om uken tok deg nærmere eller lenger unna.
-          </p>
-        </Card>
-      )}
+      <div className="mt-auto flex flex-col gap-2">
+        {latest ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() =>
+                sheet.openSheet("Øktforslag", <SessionSheet today={latest} hrMax={hrMax} />)
+              }
+            >
+              Foreslå økt
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() =>
+                sheet.openSheet("Spør coachen", <ChatSheet today={latest} hrMax={hrMax} />)
+              }
+            >
+              Spør coachen
+            </button>
+          </div>
+        ) : null}
+        {onOpenHistory ? (
+          <button type="button" className="btn btn-ghost" onClick={onOpenHistory}>
+            Historikk
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -536,10 +661,14 @@ export function GoalsScreen({
   goals: initialGoals,
   records,
   sheet,
+  logs = [],
+  hrMax = null,
 }: {
   goals: Goal[];
   records: DailyRecord[];
   sheet: SheetApi;
+  logs?: MilestoneLog[];
+  hrMax?: number | null;
 }) {
   const initial = initialGoals.find((g) => g.isMain) ?? initialGoals[0] ?? null;
   const [goal, setGoal] = useState<Goal | null>(initial);
@@ -590,7 +719,7 @@ export function GoalsScreen({
     );
   }
 
-  const trend = marathonFormTrend(records, goal);
+  const trend = marathonFormTrend(records, goal, new Date(), { logs, hrMax });
   const days = daysUntil(goal.eventDate);
 
   return (
@@ -707,6 +836,9 @@ export function GoalsScreen({
           {trend.onTrack
             ? `Dagens potensial er ${formatDuration(trend.todayS)}. Gjør du det du skal de neste ${trend.daysLeft} dagene, går estimatet gradvis mot ${formatDuration(goal.targetTimeS)}.`
             : `Dagens potensial er ${formatDuration(trend.todayS)}, bak det merket krever (${formatDuration(trend.requiredTodayS)}). Kurven viser veien mot ${formatDuration(goal.targetTimeS)} hvis du gjør alt du skal.`}
+          {logs.length
+            ? ` Testdata fra milepælene kalibrerer tallet etter hver økt.`
+            : ` Logg LT2, MP og 30 km under Milestones for å kalibrere estimatet.`}
         </p>
       </Card>
     </div>
@@ -804,139 +936,251 @@ function GoalForm({
   );
 }
 
-/* ============================ Dagens økt ============================ */
+/* ============================ Ukeplan ============================ */
 
-export function TodayScreen({
-  today,
-  goals,
+export function WeekScreen({
   sheet,
+  profile,
+  onSaveProfile,
 }: {
-  today: DailyRecord;
-  goals: Goal[];
   sheet: SheetApi;
+  profile: Profile;
+  onSaveProfile: (profile: Profile) => void;
 }) {
-  const c = CATEGORIES[today.category];
-  const main = goals.find((g) => g.isMain);
-  const subscores = computeSubscores(today.metrics);
+  const [plan, setPlan] = useState(() =>
+    hasPlannedSessions(profile.weeklyStructure)
+      ? profile.weeklyStructure
+      : loadWeekPlan(),
+  );
+  const todayIdx = todayWeekdayIndex();
+
+  useEffect(() => {
+    if (hasPlannedSessions(profile.weeklyStructure)) {
+      setPlan(profile.weeklyStructure);
+    }
+  }, [profile.weeklyStructure]);
+
+  function updateDay(key: WeekdayKey, session: PlannedSession | null) {
+    const next = { ...plan, [key]: session };
+    setPlan(next);
+    saveWeekPlan(next);
+    onSaveProfile({ ...profile, weeklyStructure: next });
+    sheet.closeSheet();
+  }
+
+  function openDay(day: (typeof WEEKDAYS)[number]) {
+    sheet.openSheet(
+      day.label,
+      <WeekDayForm
+        initial={plan[day.key]}
+        onSave={(session) => updateDay(day.key, session)}
+        onClear={() => updateDay(day.key, null)}
+      />,
+    );
+  }
+
+  const totalKm = plannedWeeklyKm(plan);
 
   return (
     <div className="flex h-full flex-col gap-2.5">
-      <div
-        style={{
-          background: c.bg,
-          border: `1px solid ${c.border}`,
-          borderRadius: "var(--radius-lg)",
-          padding: "0.85rem",
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CategoryDot category={today.category} size={14} />
-            <span style={{ color: c.text, fontWeight: 700, fontSize: "1.1rem" }}>
-              {c.label}
-            </span>
-          </div>
-          <div>
-            <span style={{ color: c.text, fontWeight: 700, fontSize: "1.4rem" }}>
-              {today.score}
-            </span>
-            <span style={{ color: c.text, opacity: 0.7, fontSize: "0.85rem" }}>
-              /100
-            </span>
-          </div>
-        </div>
-        <p style={{ color: c.text, marginTop: "0.5rem", fontWeight: 600, fontSize: "0.9rem", lineHeight: 1.35 }}>
-          {c.advice}
+      <Card style={{ padding: "0.7rem 0.85rem" }}>
+        <p
+          style={{
+            fontSize: "0.62rem",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+            color: "var(--gray-500)",
+            margin: 0,
+          }}
+        >
+          Fast uke · man–søn
         </p>
-        <p style={{ color: c.text, opacity: 0.85, marginTop: "0.2rem", fontSize: "0.78rem" }}>
-          Ramme: {c.limit}
-          {main ? ` · ${daysUntil(main.eventDate)} d til ${main.title}` : ""}
+        <p style={{ margin: "0.2rem 0 0", fontWeight: 700, fontSize: "1.05rem" }}>
+          {formatNumber(totalKm, 0)} km planlagt
+          {profile.weeklyKm ? (
+            <span style={{ fontWeight: 500, color: "var(--gray-500)", fontSize: "0.78rem" }}>
+              {" "}
+              / {formatNumber(profile.weeklyKm, 0)} km ønsket
+            </span>
+          ) : null}
         </p>
-      </div>
+      </Card>
 
-      {today.triggers.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          {today.triggers.map((t, i) => (
-            <div
-              key={i}
-              className="flex items-start gap-2"
+      <Card style={{ padding: "0.2rem 0.35rem", flex: 1, minHeight: 0 }}>
+        {WEEKDAYS.map((day, i) => {
+          const session = plan[day.key];
+          const isToday = i === todayIdx;
+          return (
+            <button
+              key={day.key}
+              type="button"
+              onClick={() => openDay(day)}
+              className="flex w-full items-center gap-2.5"
               style={{
-                background: CATEGORIES[t.forces].bg,
-                border: `1px solid ${CATEGORIES[t.forces].border}`,
-                borderRadius: "var(--radius-md)",
-                padding: "0.5rem 0.65rem",
+                padding: "0.55rem 0.5rem",
+                borderBottom: i < WEEKDAYS.length - 1 ? "1px solid var(--border)" : "none",
+                background: isToday ? "var(--blue-50)" : "transparent",
+                borderRadius: isToday ? "var(--radius-md)" : 0,
+                textAlign: "left",
               }}
             >
-              <i className="bx bx-error-circle" aria-hidden="true" style={{ color: CATEGORIES[t.forces].text, marginTop: 1, fontSize: "0.95rem" }} />
-              <span style={{ color: CATEGORIES[t.forces].text, fontSize: "0.78rem", lineHeight: 1.3 }}>
-                {t.reason}
+              <span
+                style={{
+                  width: 36,
+                  fontWeight: 700,
+                  fontSize: "0.78rem",
+                  color: isToday ? "var(--blue-main)" : "var(--gray-600)",
+                  flex: "none",
+                }}
+              >
+                {day.short}
               </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-2">
-        {METRIC_ORDER.map((key) => {
-          const meta = METRIC_META[key];
-          const subscore = subscores[key];
-          return (
-            <div
-              key={key}
-              className="panel"
-              style={{ borderRadius: "var(--radius-md)", padding: "0.5rem 0.6rem" }}
-            >
-              <div className="flex items-baseline justify-between">
-                <span style={{ fontSize: "0.66rem", color: "var(--gray-500)" }}>
-                  {meta.label}
-                </span>
-                <span style={{ fontSize: "0.58rem", color: "var(--gray-400)" }}>
-                  {Math.round(subscore)}
-                </span>
-              </div>
-              <p style={{ fontSize: "1rem", fontWeight: 700, lineHeight: 1.15 }}>
-                {metricValueText(key, today.metrics[key])}
-                {meta.unit && (
-                  <span style={{ fontSize: "0.62rem", color: "var(--gray-400)", fontWeight: 500, marginLeft: 3 }}>
-                    {meta.unit}
+              <span className="min-w-0 flex-1">
+                {session ? (
+                  <>
+                    <span
+                      style={{
+                        display: "block",
+                        fontWeight: 600,
+                        fontSize: "0.86rem",
+                        color: "var(--sp-navy)",
+                      }}
+                    >
+                      {sessionSummary(session)}
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--gray-500)" }}>
+                      {formatNumber(session.km, 1)} km
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: "0.86rem", color: "var(--gray-400)" }}>
+                    Hvile · trykk for å legge inn
                   </span>
                 )}
-              </p>
-              <div style={{ marginTop: "0.3rem" }}>
-                <ScoreBar value={subscore} />
-              </div>
-            </div>
+              </span>
+              <i
+                className="bx bx-chevron-right"
+                aria-hidden="true"
+                style={{ color: "var(--gray-400)", fontSize: "1.2rem" }}
+              />
+            </button>
           );
         })}
-      </div>
-
-      <div className="mt-auto grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() =>
-            sheet.openSheet("Øktforslag", <SessionSheet today={today} />)
-          }
-        >
-          Foreslå økt
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() =>
-            sheet.openSheet("Spør coachen", <ChatSheet today={today} />)
-          }
-        >
-          Spør coachen
-        </button>
-      </div>
+      </Card>
     </div>
   );
 }
 
-function SessionSheet({ today }: { today: DailyRecord }) {
+function WeekDayForm({
+  initial,
+  onSave,
+  onClear,
+}: {
+  initial: PlannedSession | null;
+  onSave: (session: PlannedSession) => void;
+  onClear: () => void;
+}) {
+  const [distance, setDistance] = useState<DistanceKind>(initial?.distance ?? "middels");
+  const [effort, setEffort] = useState<EffortKind>(initial?.effort ?? "rolig");
+  const [km, setKm] = useState(String(initial?.km ?? DISTANCE_DEFAULT_KM.middels));
+
+  function pickDistance(next: DistanceKind) {
+    setDistance(next);
+    setKm(String(DISTANCE_DEFAULT_KM[next]));
+  }
+
+  function num(value: string) {
+    const n = Number(String(value).replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : DISTANCE_DEFAULT_KM[distance];
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--gray-500)", marginBottom: 6 }}>
+          Distanse
+        </p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {(["kort", "middels", "lang"] as DistanceKind[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={distance === key ? "btn btn-primary" : "btn btn-ghost"}
+              style={{ minHeight: 40, fontSize: "0.78rem", padding: "0.35rem 0.4rem" }}
+              onClick={() => pickDistance(key)}
+            >
+              {DISTANCE_LABEL[key]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--gray-500)", marginBottom: 6 }}>
+          Intensitet
+        </p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {(["rolig", "middels", "hard"] as EffortKind[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={effort === key ? "btn btn-primary" : "btn btn-ghost"}
+              style={{ minHeight: 40, fontSize: "0.78rem", padding: "0.35rem 0.4rem" }}
+              onClick={() => setEffort(key)}
+            >
+              {EFFORT_LABEL[key]}
+            </button>
+          ))}
+        </div>
+        <p style={{ margin: "0.4rem 0 0", fontSize: "0.72rem", color: "var(--gray-500)", lineHeight: 1.35 }}>
+          {isInterval(effort)
+            ? "Middels og hard = terskel/intervall. Hold mest 80 % av makspuls; på grønne dager inntil 87 % og litt over."
+            : "Rolig = jevn tur uten intervall."}
+        </p>
+      </div>
+
+      <label className="flex flex-col gap-1">
+        <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--gray-500)" }}>
+          Ønsket km
+        </span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={km}
+          onChange={(e) => setKm(e.target.value)}
+          className="input"
+        />
+      </label>
+
+      <button
+        type="button"
+        className="btn btn-primary w-full"
+        onClick={() =>
+          onSave({ distance, effort, km: num(km) })
+        }
+      >
+        Lagre økt
+      </button>
+      {initial ? (
+        <button type="button" className="btn btn-ghost w-full" onClick={onClear}>
+          Fjern økt (hvile)
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function SessionSheet({
+  today,
+  hrMax = null,
+}: {
+  today: DailyRecord;
+  hrMax?: number | null;
+}) {
   const c = CATEGORIES[today.category];
-  const session = suggestSession(today);
+  const planned = plannedForToday(loadWeekPlan());
+  const session = suggestSession(today, planned, hrMax);
   const parts: [string, string][] = [
     ["Oppvarming", session.warmup],
     ["Hoveddel", session.main],
@@ -953,9 +1197,48 @@ function SessionSheet({ today }: { today: DailyRecord }) {
         }}
       >
         <span style={{ color: c.text, fontWeight: 600, fontSize: "0.85rem" }}>
-          {c.label} · {c.limit}
+          {session.title ?? c.label} · {c.limit}
         </span>
+        {session.note ? (
+          <p style={{ color: c.text, fontSize: "0.78rem", lineHeight: 1.35, margin: "0.35rem 0 0" }}>
+            {session.note}
+          </p>
+        ) : null}
       </div>
+      {session.emphasis ? (
+        <div
+          style={{
+            background: "var(--blue-50)",
+            border: "1px solid var(--blue-main)",
+            borderRadius: "var(--radius-md)",
+            padding: "0.65rem 0.75rem",
+          }}
+        >
+          <p
+            style={{
+              fontSize: "0.68rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "var(--blue-main)",
+              fontWeight: 700,
+              margin: 0,
+            }}
+          >
+            Terskelpuls
+          </p>
+          <p
+            style={{
+              fontSize: "0.88rem",
+              color: "var(--sp-navy)",
+              fontWeight: 600,
+              margin: "0.3rem 0 0",
+              lineHeight: 1.4,
+            }}
+          >
+            {session.emphasis}
+          </p>
+        </div>
+      ) : null}
       {parts.map(([label, text]) => (
         <div key={label}>
           <p style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--blue-main)", fontWeight: 600 }}>
@@ -973,7 +1256,13 @@ function SessionSheet({ today }: { today: DailyRecord }) {
   );
 }
 
-function ChatSheet({ today }: { today: DailyRecord }) {
+function ChatSheet({
+  today,
+  hrMax = null,
+}: {
+  today: DailyRecord;
+  hrMax?: number | null;
+}) {
   type ChatMsg = { role: "user" | "coach"; content: string };
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -984,7 +1273,10 @@ function ChatSheet({ today }: { today: DailyRecord }) {
     setMessages((m) => [
       ...m,
       { role: "user", content: q },
-      { role: "coach", content: coachReply(q, today) },
+      {
+        role: "coach",
+        content: coachReply(q, today, plannedForToday(loadWeekPlan()), hrMax),
+      },
     ]);
     setInput("");
   }
@@ -1033,77 +1325,128 @@ function ChatSheet({ today }: { today: DailyRecord }) {
 
 /* ============================ Trender ============================ */
 
-export function TrendsScreen({ records }: { records: DailyRecord[] }) {
-  const window = records.slice(-28);
-  const last = window[window.length - 1]?.metrics;
+export function TrendsScreen({
+  records,
+  goal: goalProp,
+  weeklyKm,
+  logs = [],
+  hrMax = null,
+}: {
+  records: DailyRecord[];
+  goal?: Goal | null;
+  weeklyKm?: number;
+  logs?: MilestoneLog[];
+  hrMax?: number | null;
+}) {
+  const [goal, setGoal] = useState<Goal | null>(goalProp ?? null);
+  useEffect(() => {
+    setGoal(loadStoredGoal(goalProp ?? null));
+  }, [goalProp]);
 
-  const trends = [
-    {
-      title: "HRV z-skår",
-      values: window.map((r) => r.metrics.hrv_z),
-      color: "#0A5EDC",
-      current: formatSigned(last?.hrv_z ?? 0, 2),
-      overThreshold: false,
-      note:
-        (last?.hrv_z ?? 0) < -0.5
-          ? "Under baseline — nervesystemet er belastet."
-          : (last?.hrv_z ?? 0) > 0.5
-            ? "Over baseline — god parasympatisk balanse."
-            : "Nær baseline.",
-    },
-    {
-      title: "ΔRHR (bpm)",
-      values: window.map((r) => r.metrics.d_rhr),
-      color: "#9747FF",
-      current: formatSigned(last?.d_rhr ?? 0, 0),
-      overThreshold: false,
-      note:
-        (last?.d_rhr ?? 0) >= 3
-          ? "Forhøyet hvilepuls — ufullstendig restitusjon."
-          : "Hvilepuls nær baseline.",
-    },
-    {
-      title: "ACWR",
-      values: window.map((r) => r.metrics.acwr),
-      color: "#002359",
-      threshold: 1.5,
-      current: formatNumber(last?.acwr ?? 0, 2),
-      overThreshold: (last?.acwr ?? 0) >= 1.5,
-      note:
-        (last?.acwr ?? 0) >= 1.5
-          ? "Over 1,50 — høy skaderisiko, trapp ned."
-          : (last?.acwr ?? 0) < 0.8
-            ? "Under 0,80 — rom for å øke belastningen."
-            : "I trygt vindu (0,80–1,50).",
-    },
-  ];
+  const window = records.slice(-28);
+  const volume = rollingWeeklyKm(window, 7);
+  const latestVolume = volume[volume.length - 1] ?? 0;
+  const prevVolume = volume.length > 7 ? volume[volume.length - 8] : volume[0];
+  const volumeUp = latestVolume >= (prevVolume ?? 0);
+
+  const target = goal?.targetTimeS ?? 0;
+  const estimates = target
+    ? dailyGoalEstimateSeconds(window, target, { logs, hrMax })
+    : [];
+  const latestEst = estimates[estimates.length - 1];
+  const prevEst =
+    estimates.length > 1 ? estimates[estimates.length - 2] : latestEst;
+  const towardGoal =
+    latestEst != null && prevEst != null ? latestEst < prevEst - 5 : null;
+  const awayFromGoal =
+    latestEst != null && prevEst != null ? latestEst > prevEst + 5 : null;
+  const formTowardGoal = estimates.map((s) => -s);
+
+  const sleep = window.map((r) => r.metrics.sleep_score);
+  const latestSleep = sleep[sleep.length - 1];
 
   return (
     <div className="flex h-full flex-col gap-2.5">
-      <p style={{ color: "var(--gray-500)", fontSize: "0.8rem" }}>
-        Siste {window.length} dager.
-      </p>
-      {trends.map((t) => (
-        <Card key={t.title} style={{ padding: "0.75rem", flex: 1, minHeight: 0 }}>
-          <div className="flex items-center justify-between">
-            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--gray-600)" }}>
-              {t.title}
-            </span>
-            <span
-              style={{
-                fontWeight: 700,
-                color: t.overThreshold ? "var(--error-600)" : t.color,
-              }}
-            >
-              {t.current}
-            </span>
-          </div>
-          <Sparkline values={t.values} color={t.color} threshold={t.threshold} height={40} />
-          <p style={{ fontSize: "0.76rem", color: "var(--gray-600)", marginTop: "0.35rem" }}>
-            {t.note}
+      <Card style={{ padding: "0.7rem 0.8rem", flex: 1, minHeight: 0 }}>
+        <div className="flex items-baseline justify-between">
+          <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--gray-600)" }}>
+            Ukesvolum · 7 dager
+          </span>
+          <span style={{ fontWeight: 700, color: "var(--sp-navy)" }}>
+            {formatNumber(latestVolume, 1)} km
+          </span>
+        </div>
+        <Sparkline values={volume} color="#002359" height={44} />
+        <p style={{ fontSize: "0.76rem", color: "var(--gray-600)", marginTop: "0.3rem" }}>
+          Glidende ukesvolum siste 7 dager
+          {weeklyKm
+            ? ` · ønsket ${formatNumber(weeklyKm, 0)} km/uke`
+            : ""}
+          {volume.length > 1
+            ? volumeUp
+              ? " · volumet stiger."
+              : " · volumet synker."
+            : "."}
+        </p>
+      </Card>
+
+      <Card style={{ padding: "0.7rem 0.8rem", flex: 1, minHeight: 0 }}>
+        <div className="flex items-baseline justify-between">
+          <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--gray-600)" }}>
+            Mot målet · dag for dag
+          </span>
+          <span
+            style={{
+              fontWeight: 700,
+              color:
+                towardGoal
+                  ? "var(--success-700)"
+                  : awayFromGoal
+                    ? "var(--error-700)"
+                    : "var(--gray-700)",
+            }}
+          >
+            {towardGoal
+              ? "Oppadgående"
+              : awayFromGoal
+                ? "Nedadgående"
+                : goal
+                  ? "Stabil"
+                  : "—"}
+          </span>
+        </div>
+        {formTowardGoal.length >= 2 ? (
+          <Sparkline values={formTowardGoal} color="#0A5EDC" height={44} />
+        ) : (
+          <p style={{ fontSize: "0.8rem", color: "var(--gray-500)", marginTop: "0.5rem" }}>
+            Sett et maratonmål for å se trenden.
           </p>
-        </Card>
-      ))}
+        )}
+        <p style={{ fontSize: "0.76rem", color: "var(--gray-600)", marginTop: "0.3rem" }}>
+          {latestEst != null && goal
+            ? `I dag ${formatDuration(latestEst)} mot ${formatDuration(goal.targetTimeS)}. Oppadgående linje = nærmere målet.`
+            : "Kurven viser estimert sluttid per dag."}
+        </p>
+      </Card>
+
+      <Card style={{ padding: "0.7rem 0.8rem", flex: 1, minHeight: 0 }}>
+        <div className="flex items-baseline justify-between">
+          <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--gray-600)" }}>
+            Søvnskår · dag for dag
+          </span>
+          <span style={{ fontWeight: 700, color: "#9747FF" }}>
+            {latestSleep != null ? formatNumber(latestSleep, 0) : "—"}
+          </span>
+        </div>
+        <Sparkline values={sleep} color="#9747FF" threshold={70} height={44} />
+        <p style={{ fontSize: "0.76rem", color: "var(--gray-600)", marginTop: "0.3rem" }}>
+          {(latestSleep ?? 0) >= 80
+            ? "Sterk natt — over 80."
+            : (latestSleep ?? 0) >= 70
+              ? "Grei natt — rundt 70."
+              : "Svak natt — under 70."}
+        </p>
+      </Card>
     </div>
   );
 }
@@ -1113,17 +1456,32 @@ export function TrendsScreen({ records }: { records: DailyRecord[] }) {
 export function HistoryScreen({
   records,
   sheet,
+  onBack,
 }: {
   records: DailyRecord[];
   sheet: SheetApi;
+  onBack?: () => void;
 }) {
+  const [hovered, setHovered] = useState<DailyRecord | null>(null);
+
   return (
-    <div className="flex h-full flex-col gap-2.5">
+    <div className="flex h-full flex-col gap-2.5" style={{ position: "relative" }}>
+      {onBack ? (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={onBack}
+          style={{ alignSelf: "flex-start", minHeight: 36, padding: "0 0.7rem" }}
+        >
+          Tilbake
+        </button>
+      ) : null}
       <p style={{ color: "var(--gray-500)", fontSize: "0.8rem" }}>
-        Siste {records.length} dager. Trykk på en dag for detaljer.
+        Siste {records.length} dager. Hold over en dag for skalaen, trykk for detaljer.
       </p>
       <div
         className="grid flex-1"
+        onMouseLeave={() => setHovered(null)}
         style={{
           gridTemplateColumns: "repeat(7, 1fr)",
           gap: 5,
@@ -1133,16 +1491,21 @@ export function HistoryScreen({
         {records.map((r) => {
           const c = CATEGORIES[r.category];
           const day = new Date(`${r.date}T00:00:00`).getDate();
+          const on = hovered?.date === r.date;
           return (
             <button
               key={r.date}
               type="button"
               onClick={() => sheet.openSheet(formatDate(r.date), <HistoryDetail record={r} />)}
+              onMouseEnter={() => setHovered(r)}
+              onFocus={() => setHovered(r)}
+              onBlur={() => setHovered(null)}
               className="flex flex-col items-center justify-center"
+              aria-label={`${formatDate(r.date)} · ${c.label} · skår ${r.score}`}
               style={{
                 aspectRatio: "1",
                 background: c.bg,
-                border: `1px solid ${c.border}`,
+                border: on ? `2px solid ${c.text}` : `1px solid ${c.border}`,
                 borderRadius: "var(--radius-sm)",
                 color: c.text,
               }}
@@ -1155,13 +1518,39 @@ export function HistoryScreen({
           );
         })}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1" style={{ fontSize: "0.66rem", color: "var(--gray-500)" }}>
-        {(["green", "yellow", "yellow_caution", "red2"] as const).map((k) => (
-          <span key={k} className="flex items-center gap-1">
-            <CategoryDot category={k} size={7} /> {CATEGORIES[k].label}
-          </span>
-        ))}
-      </div>
+      {hovered ? (
+        <div
+          role="tooltip"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 20,
+            background: "var(--white)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-sm)",
+            padding: "0.65rem 0.7rem",
+            maxHeight: "58%",
+            overflowY: "auto",
+            pointerEvents: "none",
+          }}
+        >
+          <CategoryScaleLegend
+            active={hovered.category}
+            heading={`${formatDate(hovered.date)} · ${CATEGORIES[hovered.category].label} · skår ${hovered.score}`}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ fontSize: "0.66rem", color: "var(--gray-500)" }}>
+          {CATEGORY_ORDER.map((k) => (
+            <span key={k} className="flex items-center gap-1">
+              <CategoryDot category={k} size={7} /> {CATEGORIES[k].label}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

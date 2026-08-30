@@ -1,0 +1,560 @@
+Fysiologisk kalibrering og milepælsanalyse for maratonprestasjoner (2:30:00 – 4:30:00)
+Executive Summary: Det fysiologiske kravbildet for maraton
+Å fullføre et maraton krever en simultan og balansert utnyttelse av utøverens aerobe og metabolske apparat. Uansett om målet er 2:30:00 eller 4:30:00, styres prestasjonen av tre primære fysiologiske faktorer: maksimalt oksygenopptak (VO 
+2
+​
+ max), den andre anaerobe terskelen (LT2 eller laktatterskel), samt aerob kapasitet, løpsøkonomi og tretthetsmotstand (durability).   
+
+Målhastigheten for maraton (MP) definerer hvilken fysiologisk belastning utøveren må opprettholde i 42 195 meter. For at utøveren skal unngå for tidlig tømming av de intramuskulære glykogenlagrene («å møte veggen»), må maratonfarten løpes i en metabolsk steady-state, der energifrigjøringen domineres av aerob metabolisme. Dette krever at maratonfarten ligger trygt under utøverens LT2-terskel og på et kontrollert prosentvis nivå av utøverens makspuls.   
+
+Fysiologisk variabel	Generell Målverdi (% av HR 
+max
+​
+  / Kapasitet)	Teoretisk og mekanistisk begrunnelse
+Målhastighet (MP)	
+Eksakt distanse / måltid
+
+Nødvendig gjennomsnittsfart for å oppnå valgt sluttid.
+
+Anaerob terskel (LT2) Fart	
+~90–94 % av MP-tid (15–25 sek/km raskere enn MP)
+
+Etablerer en farts margin over MP for å unngå laktatakkumulering.
+
+Aerob terskel (LT1) Fart	
+~110–115 % av MP-tid (35–45 sek/km tregere enn MP)
+
+Utgjør øvre grense for ren aerob energifrigjøring med minimal blodlaktat.
+
+Laktatterskelpuls (LTHR)	
+88 – 92 % av makspuls
+
+Definerer den øvre grensen for brennstoffomsetning i metabolsk steady-state.
+
+Maratonfartspuls (MPHR)	
+80 – 85 % av makspuls
+
+Sikrer at løpet gjennomføres i en bærekraftig aerob sone.
+
+Aerob dekobling (Pa:HR)	
+< 5,0 % over 60–90 min
+
+Kvantifiserer fravær av kardial drift, termisk stress og vaskulær tretthet.
+
+  
+Strategisk rammeverk for testløp i den spesifikke treningsfasen (Dag 60–90)
+I treningsblokken 60 til 90 dager før konkurransen går utøveren inn i den spesifikke kalibreringsfasen. For å verifisere at utøverens fysiologiske profil samsvarer med det valgte måltidet, benyttes tre adskilte testprotokoller som gjennomføres syklisk.   
+
+Testene isolerer de tre nøkkelkomponentene i maratonfysiologien:
+
+Test 1 (LT2-terskel): Vurderer utøverens øvre anaerobe kapasitet og fartsreservoar.   
+
+Test 2 (MP-steady-state): Vurderer fysiologisk og kardiovaskulær stabilitet ved spesifikk maratonhastighet.   
+
+Test 3 (Aerob dekobling og utholdenhet): Vurderer tretthetsmotstand, karbohydratopptak og kardial drift under langvarig belastning.   
+
+For å kvantifisere fysiologisk effektivitet under testene benyttes Effektivitetsfaktor (EF) og Aerob Dekobling (Pa:HR):   
+
+EF= 
+Gjennomsnittlig Hjertefrekvens (bpm)
+Hastighet (m/min)
+​
+ 
+Aerob Dekobling (%)=( 
+EF 
+første halvdel
+​
+ 
+EF 
+første halvdel
+​
+ −EF 
+andre halvdel
+​
+ 
+​
+ )×100
+En aerob dekobling på under 5,0 % bekrefter at utøverens aerob-vaskulære apparat tåler den valgte intensiteten uten fysiologisk kollaps.   
+
+De tre gullstandard testløpene med konkrete kalibreringstabeller (2:30:00 – 4:30:00)
+Test 1: Den anaerobe terskeltesten (LT2-test)
+Protokollen gjennomføres som 30 minutter kontinuerlig terskelløp på flatt underlag eller bane etter 15 minutters oppvarming. Utøveren skal holde et helt jevnt tempo gjennom samtlige 30 minutter. Pulsen registreres som prosent av makspuls.   
+
+Testformat: 30 minutter kontinuerlig løp.   
+
+Målpuls (Snitt): Eksakt 88 – 92 % av makspuls (de siste 20 min).   
+
+Maksimal puls mot slutt: Maks 93 % av makspuls.   
+
+Mållaktat: 4,0 mmol/L (±0,2 mmol/L).   
+
+Pacing-krav: Avvik mellom 1. og 2. halvdel < 2,0 %.   
+
+Nedenfor vises kalibreringstabellen for Test 1 i 1-minutters intervaller fra 2:30:00 til 4:30:00.
+
+Måltid	Maratonfart (MP)	Test 1 Target Fart (LT2)	Test 1 Målpuls (% av makspuls)
+2:30:00	3:33 min/km	3:15 min/km	88 – 92 %
+2:31:00	3:35 min/km	3:17 min/km	88 – 92 %
+2:32:00	3:36 min/km	3:18 min/km	88 – 92 %
+2:33:00	3:38 min/km	3:19 min/km	88 – 92 %
+2:34:00	3:39 min/km	3:21 min/km	88 – 92 %
+2:35:00	3:40 min/km	3:22 min/km	88 – 92 %
+2:36:00	3:42 min/km	3:24 min/km	88 – 92 %
+2:37:00	3:43 min/km	3:25 min/km	88 – 92 %
+2:38:00	3:45 min/km	3:26 min/km	88 – 92 %
+2:39:00	3:46 min/km	3:28 min/km	88 – 92 %
+2:40:00	3:47 min/km	3:29 min/km	88 – 92 %
+2:41:00	3:49 min/km	3:31 min/km	88 – 92 %
+2:42:00	3:50 min/km	3:32 min/km	88 – 92 %
+2:43:00	3:52 min/km	3:34 min/km	88 – 92 %
+2:44:00	3:53 min/km	3:35 min/km	88 – 92 %
+2:45:00	3:55 min/km	3:36 min/km	88 – 92 %
+2:46:00	3:56 min/km	3:38 min/km	88 – 92 %
+2:47:00	3:57 min/km	3:39 min/km	88 – 92 %
+2:48:00	3:59 min/km	3:40 min/km	88 – 92 %
+2:49:00	4:00 min/km	3:42 min/km	88 – 92 %
+2:50:00	4:02 min/km	3:43 min/km	88 – 92 %
+2:51:00	4:03 min/km	3:45 min/km	88 – 92 %
+2:52:00	4:05 min/km	3:46 min/km	88 – 92 %
+2:53:00	4:06 min/km	3:47 min/km	88 – 92 %
+2:54:00	4:07 min/km	3:49 min/km	88 – 92 %
+2:55:00	4:09 min/km	3:50 min/km	88 – 92 %
+2:56:00	4:10 min/km	3:51 min/km	88 – 92 %
+2:57:00	4:12 min/km	3:53 min/km	88 – 92 %
+2:58:00	4:13 min/km	3:54 min/km	88 – 92 %
+2:59:00 / 2:59:59	4:15 min/km	3:55 min/km	88 – 92 %
+3:00:00	4:16 min/km	3:56 min/km	88 – 92 %
+3:01:00	4:17 min/km	3:57 min/km	88 – 92 %
+3:02:00	4:19 min/km	3:59 min/km	88 – 92 %
+3:03:00	4:20 min/km	4:00 min/km	88 – 92 %
+3:04:00	4:22 min/km	4:02 min/km	88 – 92 %
+3:05:00	4:23 min/km	4:03 min/km	88 – 92 %
+3:06:00	4:24 min/km	4:04 min/km	88 – 92 %
+3:07:00	4:26 min/km	4:06 min/km	88 – 92 %
+3:08:00	4:27 min/km	4:07 min/km	88 – 92 %
+3:09:00	4:29 min/km	4:08 min/km	88 – 92 %
+3:10:00	4:30 min/km	4:10 min/km	88 – 92 %
+3:11:00	4:32 min/km	4:11 min/km	88 – 92 %
+3:12:00	4:33 min/km	4:12 min/km	88 – 92 %
+3:13:00	4:34 min/km	4:14 min/km	88 – 92 %
+3:14:00	4:36 min/km	4:15 min/km	88 – 92 %
+3:15:00	4:37 min/km	4:16 min/km	88 – 92 %
+3:16:00	4:39 min/km	4:18 min/km	88 – 92 %
+3:17:00	4:40 min/km	4:19 min/km	88 – 92 %
+3:18:00	4:42 min/km	4:20 min/km	88 – 92 %
+3:19:00	4:43 min/km	4:22 min/km	88 – 92 %
+3:20:00	4:44 min/km	4:23 min/km	88 – 92 %
+3:21:00	4:46 min/km	4:25 min/km	88 – 92 %
+3:22:00	4:47 min/km	4:26 min/km	88 – 92 %
+3:23:00	4:49 min/km	4:27 min/km	88 – 92 %
+3:24:00	4:50 min/km	4:29 min/km	88 – 92 %
+3:25:00	4:51 min/km	4:30 min/km	88 – 92 %
+3:26:00	4:53 min/km	4:31 min/km	88 – 92 %
+3:27:00	4:54 min/km	4:33 min/km	88 – 92 %
+3:28:00	4:56 min/km	4:34 min/km	88 – 92 %
+3:29:00	4:57 min/km	4:35 min/km	88 – 92 %
+3:30:00	4:59 min/km	4:37 min/km	88 – 92 %
+3:31:00	5:00 min/km	4:38 min/km	88 – 92 %
+3:32:00	5:01 min/km	4:39 min/km	88 – 92 %
+3:33:00	5:03 min/km	4:41 min/km	88 – 92 %
+3:34:00	5:04 min/km	4:42 min/km	88 – 92 %
+3:35:00	5:06 min/km	4:43 min/km	88 – 92 %
+3:36:00	5:07 min/km	4:45 min/km	88 – 92 %
+3:37:00	5:09 min/km	4:46 min/km	88 – 92 %
+3:38:00	5:10 min/km	4:47 min/km	88 – 92 %
+3:39:00	5:11 min/km	4:49 min/km	88 – 92 %
+3:40:00	5:13 min/km	4:50 min/km	88 – 92 %
+3:41:00	5:14 min/km	4:51 min/km	88 – 92 %
+3:42:00	5:16 min/km	4:53 min/km	88 – 92 %
+3:43:00	5:17 min/km	4:54 min/km	88 – 92 %
+3:44:00	5:19 min/km	4:55 min/km	88 – 92 %
+3:45:00	5:20 min/km	4:57 min/km	88 – 92 %
+3:46:00	5:21 min/km	4:58 min/km	88 – 92 %
+3:47:00	5:23 min/km	4:59 min/km	88 – 92 %
+3:48:00	5:24 min/km	5:01 min/km	88 – 92 %
+3:49:00	5:26 min/km	5:02 min/km	88 – 92 %
+3:50:00	5:27 min/km	5:03 min/km	88 – 92 %
+3:51:00	5:28 min/km	5:05 min/km	88 – 92 %
+3:52:00	5:30 min/km	5:06 min/km	88 – 92 %
+3:53:00	5:31 min/km	5:07 min/km	88 – 92 %
+3:54:00	5:33 min/km	5:09 min/km	88 – 92 %
+3:55:00	5:34 min/km	5:10 min/km	88 – 92 %
+3:56:00	5:36 min/km	5:11 min/km	88 – 92 %
+3:57:00	5:37 min/km	5:13 min/km	88 – 92 %
+3:58:00	5:38 min/km	5:14 min/km	88 – 92 %
+3:59:00	5:40 min/km	5:15 min/km	88 – 92 %
+4:00:00	5:41 min/km	5:17 min/km	88 – 92 %
+4:01:00	5:43 min/km	5:18 min/km	88 – 92 %
+4:02:00	5:44 min/km	5:19 min/km	88 – 92 %
+4:03:00	5:46 min/km	5:21 min/km	88 – 92 %
+4:04:00	5:47 min/km	5:22 min/km	88 – 92 %
+4:05:00	5:48 min/km	5:23 min/km	88 – 92 %
+4:06:00	5:50 min/km	5:25 min/km	88 – 92 %
+4:07:00	5:51 min/km	5:26 min/km	88 – 92 %
+4:08:00	5:53 min/km	5:27 min/km	88 – 92 %
+4:09:00	5:54 min/km	5:29 min/km	88 – 92 %
+4:10:00	5:55 min/km	5:30 min/km	88 – 92 %
+4:11:00	5:57 min/km	5:31 min/km	88 – 92 %
+4:12:00	5:58 min/km	5:33 min/km	88 – 92 %
+4:13:00	6:00 min/km	5:34 min/km	88 – 92 %
+4:14:00	6:01 min/km	5:35 min/km	88 – 92 %
+4:15:00	6:03 min/km	5:37 min/km	88 – 92 %
+4:16:00	6:04 min/km	5:38 min/km	88 – 92 %
+4:17:00	6:05 min/km	5:39 min/km	88 – 92 %
+4:18:00	6:07 min/km	5:41 min/km	88 – 92 %
+4:19:00	6:08 min/km	5:42 min/km	88 – 92 %
+4:20:00	6:10 min/km	5:43 min/km	88 – 92 %
+4:21:00	6:11 min/km	5:45 min/km	88 – 92 %
+4:22:00	6:13 min/km	5:46 min/km	88 – 92 %
+4:23:00	6:14 min/km	5:47 min/km	88 – 92 %
+4:24:00	6:15 min/km	5:49 min/km	88 – 92 %
+4:25:00	6:17 min/km	5:50 min/km	88 – 92 %
+4:26:00	6:18 min/km	5:51 min/km	88 – 92 %
+4:27:00	6:20 min/km	5:53 min/km	88 – 92 %
+4:28:00	6:21 min/km	5:54 min/km	88 – 92 %
+4:29:00	6:23 min/km	5:55 min/km	88 – 92 %
+4:30:00	6:24 min/km	5:57 min/km	88 – 92 %
+Test 2: Den sub-terskel spesifikke maratonfarttesten (MP-test)
+Protokollen gjennomføres som 60 minutter kontinuerlig løp i eksakt maratonfart.   
+
+Testformat: 60 minutter kontinuerlig løp.   
+
+Målpuls (Snitt): Gjennomsnitt 80 – 85 % av makspuls.   
+
+Maksimal puls: Skal aldri overstige 85 % av makspuls.   
+
+Aerob dekobling (Pa:HR): Eksakt < 3,0 %.   
+
+Mållaktat: 2,0 – 2,5 mmol/L.   
+
+Nedenfor vises kalibreringstabellen for Test 2 i 1-minutters intervaller fra 2:30:00 til 4:30:00.
+
+Måltid	Test 2 Target Fart (MP)	Test 2 Målpuls (Snitt % av makspuls)	Maks Tillatt Puls (% av makspuls)
+2:30:00	3:33 min/km	80 – 85 %	85 %
+2:31:00	3:35 min/km	80 – 85 %	85 %
+2:32:00	3:36 min/km	80 – 85 %	85 %
+2:33:00	3:38 min/km	80 – 85 %	85 %
+2:34:00	3:39 min/km	80 – 85 %	85 %
+2:35:00	3:40 min/km	80 – 85 %	85 %
+2:36:00	3:42 min/km	80 – 85 %	85 %
+2:37:00	3:43 min/km	80 – 85 %	85 %
+2:38:00	3:45 min/km	80 – 85 %	85 %
+2:39:00	3:46 min/km	80 – 85 %	85 %
+2:40:00	3:47 min/km	80 – 85 %	85 %
+2:41:00	3:49 min/km	80 – 85 %	85 %
+2:42:00	3:50 min/km	80 – 85 %	85 %
+2:43:00	3:52 min/km	80 – 85 %	85 %
+2:44:00	3:53 min/km	80 – 85 %	85 %
+2:45:00	3:55 min/km	80 – 85 %	85 %
+2:46:00	3:56 min/km	80 – 85 %	85 %
+2:47:00	3:57 min/km	80 – 85 %	85 %
+2:48:00	3:59 min/km	80 – 85 %	85 %
+2:49:00	4:00 min/km	80 – 85 %	85 %
+2:50:00	4:02 min/km	80 – 85 %	85 %
+2:51:00	4:03 min/km	80 – 85 %	85 %
+2:52:00	4:05 min/km	80 – 85 %	85 %
+2:53:00	4:06 min/km	80 – 85 %	85 %
+2:54:00	4:07 min/km	80 – 85 %	85 %
+2:55:00	4:09 min/km	80 – 85 %	85 %
+2:56:00	4:10 min/km	80 – 85 %	85 %
+2:57:00	4:12 min/km	80 – 85 %	85 %
+2:58:00	4:13 min/km	80 – 85 %	85 %
+2:59:00 / 2:59:59	4:15 min/km	80 – 85 %	85 %
+3:00:00	4:16 min/km	80 – 85 %	85 %
+3:01:00	4:17 min/km	80 – 85 %	85 %
+3:02:00	4:19 min/km	80 – 85 %	85 %
+3:03:00	4:20 min/km	80 – 85 %	85 %
+3:04:00	4:22 min/km	80 – 85 %	85 %
+3:05:00	4:23 min/km	80 – 85 %	85 %
+3:06:00	4:24 min/km	80 – 85 %	85 %
+3:07:00	4:26 min/km	80 – 85 %	85 %
+3:08:00	4:27 min/km	80 – 85 %	85 %
+3:09:00	4:29 min/km	80 – 85 %	85 %
+3:10:00	4:30 min/km	80 – 85 %	85 %
+3:11:00	4:32 min/km	80 – 85 %	85 %
+3:12:00	4:33 min/km	80 – 85 %	85 %
+3:13:00	4:34 min/km	80 – 85 %	85 %
+3:14:00	4:36 min/km	80 – 85 %	85 %
+3:15:00	4:37 min/km	80 – 85 %	85 %
+3:16:00	4:39 min/km	80 – 85 %	85 %
+3:17:00	4:40 min/km	80 – 85 %	85 %
+3:18:00	4:42 min/km	80 – 85 %	85 %
+3:19:00	4:43 min/km	80 – 85 %	85 %
+3:20:00	4:44 min/km	80 – 85 %	85 %
+3:21:00	4:46 min/km	80 – 85 %	85 %
+3:22:00	4:47 min/km	80 – 85 %	85 %
+3:23:00	4:49 min/km	80 – 85 %	85 %
+3:24:00	4:50 min/km	80 – 85 %	85 %
+3:25:00	4:51 min/km	80 – 85 %	85 %
+3:26:00	4:53 min/km	80 – 85 %	85 %
+3:27:00	4:54 min/km	80 – 85 %	85 %
+3:28:00	4:56 min/km	80 – 85 %	85 %
+3:29:00	4:57 min/km	80 – 85 %	85 %
+3:30:00	4:59 min/km	80 – 85 %	85 %
+3:31:00	5:00 min/km	80 – 85 %	85 %
+3:32:00	5:01 min/km	80 – 85 %	85 %
+3:33:00	5:03 min/km	80 – 85 %	85 %
+3:34:00	5:04 min/km	80 – 85 %	85 %
+3:35:00	5:06 min/km	80 – 85 %	85 %
+3:36:00	5:07 min/km	80 – 85 %	85 %
+3:37:00	5:09 min/km	80 – 85 %	85 %
+3:38:00	5:10 min/km	80 – 85 %	85 %
+3:39:00	5:11 min/km	80 – 85 %	85 %
+3:40:00	5:13 min/km	80 – 85 %	85 %
+3:41:00	5:14 min/km	80 – 85 %	85 %
+3:42:00	5:16 min/km	80 – 85 %	85 %
+3:43:00	5:17 min/km	80 – 85 %	85 %
+3:44:00	5:19 min/km	80 – 85 %	85 %
+3:45:00	5:20 min/km	80 – 85 %	85 %
+3:46:00	5:21 min/km	80 – 85 %	85 %
+3:47:00	5:23 min/km	80 – 85 %	85 %
+3:48:00	5:24 min/km	80 – 85 %	85 %
+3:49:00	5:26 min/km	80 – 85 %	85 %
+3:50:00	5:27 min/km	80 – 85 %	85 %
+3:51:00	5:28 min/km	80 – 85 %	85 %
+3:52:00	5:30 min/km	80 – 85 %	85 %
+3:53:00	5:31 min/km	80 – 85 %	85 %
+3:54:00	5:33 min/km	80 – 85 %	85 %
+3:55:00	5:34 min/km	80 – 85 %	85 %
+3:56:00	5:36 min/km	80 – 85 %	85 %
+3:57:00	5:37 min/km	80 – 85 %	85 %
+3:58:00	5:38 min/km	80 – 85 %	85 %
+3:59:00	5:40 min/km	80 – 85 %	85 %
+4:00:00	5:41 min/km	80 – 85 %	85 %
+4:01:00	5:43 min/km	80 – 85 %	85 %
+4:02:00	5:44 min/km	80 – 85 %	85 %
+4:03:00	5:46 min/km	80 – 85 %	85 %
+4:04:00	5:47 min/km	80 – 85 %	85 %
+4:05:00	5:48 min/km	80 – 85 %	85 %
+4:06:00	5:50 min/km	80 – 85 %	85 %
+4:07:00	5:51 min/km	80 – 85 %	85 %
+4:08:00	5:53 min/km	80 – 85 %	85 %
+4:09:00	5:54 min/km	80 – 85 %	85 %
+4:10:00	5:55 min/km	80 – 85 %	85 %
+4:11:00	5:57 min/km	80 – 85 %	85 %
+4:12:00	5:58 min/km	80 – 85 %	85 %
+4:13:00	6:00 min/km	80 – 85 %	85 %
+4:14:00	6:01 min/km	80 – 85 %	85 %
+4:15:00	6:03 min/km	80 – 85 %	85 %
+4:16:00	6:04 min/km	80 – 85 %	85 %
+4:17:00	6:05 min/km	80 – 85 %	85 %
+4:18:00	6:07 min/km	80 – 85 %	85 %
+4:19:00	6:08 min/km	80 – 85 %	85 %
+4:20:00	6:10 min/km	80 – 85 %	85 %
+4:21:00	6:11 min/km	80 – 85 %	85 %
+4:22:00	6:13 min/km	80 – 85 %	85 %
+4:23:00	6:14 min/km	80 – 85 %	85 %
+4:24:00	6:15 min/km	80 – 85 %	85 %
+4:25:00	6:17 min/km	80 – 85 %	85 %
+4:26:00	6:18 min/km	80 – 85 %	85 %
+4:27:00	6:20 min/km	80 – 85 %	85 %
+4:28:00	6:21 min/km	80 – 85 %	85 %
+4:29:00	6:23 min/km	80 – 85 %	85 %
+4:30:00	6:24 min/km	80 – 85 %	85 %
+Test 3: Den utholdenhetsspesifikke dekoblingstesten (30 km simuleringsløp)
+Protokollen gjennomføres som en 30 km sammensatt langtur: Eksakt 15 km rolig oppvarming i Sone 2 (Del 1) umiddelbart etterfulgt av eksakt 15 km i maratonfart (Del 2).   
+
+Testformat: 30 km (15 km rolig + 15 km MP).   
+
+Målpuls Del 1 (km 0–15): Gjennomsnitt < 75 % av makspuls.   
+
+Målpuls Del 2 (km 15–30): Gjennomsnitt < 85 % av makspuls.   
+
+Maksimal puls km 25–30: Absolutt tak < 87 % av makspuls.   
+
+Aerob dekobling (Pa:HR): Eksakt < 5,0 % på Del 2.   
+
+Næringsinntak: Eksakt 75 g karbohydrater/time.   
+
+Nedenfor vises kalibreringstabellen for Test 3 i 1-minutters intervaller fra 2:30:00 til 4:30:00.
+
+Måltid	Fart Del 1 (km 0–15)	Fart Del 2 (km 15–30)	Puls Del 1 (% av makspuls)	Puls Del 2 (% av makspuls)	Makspuls km 25–30 (% av makspuls)
+2:30:00	4:08 min/km	3:33 min/km	< 75 %	< 85 %	< 87 %
+2:31:00	4:10 min/km	3:35 min/km	< 75 %	< 85 %	< 87 %
+2:32:00	4:11 min/km	3:36 min/km	< 75 %	< 85 %	< 87 %
+2:33:00	4:13 min/km	3:38 min/km	< 75 %	< 85 %	< 87 %
+2:34:00	4:14 min/km	3:39 min/km	< 75 %	< 85 %	< 87 %
+2:35:00	4:15 min/km	3:40 min/km	< 75 %	< 85 %	< 87 %
+2:36:00	4:17 min/km	3:42 min/km	< 75 %	< 85 %	< 87 %
+2:37:00	4:18 min/km	3:43 min/km	< 75 %	< 85 %	< 87 %
+2:38:00	4:20 min/km	3:45 min/km	< 75 %	< 85 %	< 87 %
+2:39:00	4:21 min/km	3:46 min/km	< 75 %	< 85 %	< 87 %
+2:40:00	4:22 min/km	3:47 min/km	< 75 %	< 85 %	< 87 %
+2:41:00	4:24 min/km	3:49 min/km	< 75 %	< 85 %	< 87 %
+2:42:00	4:25 min/km	3:50 min/km	< 75 %	< 85 %	< 87 %
+2:43:00	4:27 min/km	3:52 min/km	< 75 %	< 85 %	< 87 %
+2:44:00	4:28 min/km	3:53 min/km	< 75 %	< 85 %	< 87 %
+2:45:00	4:30 min/km	3:55 min/km	< 75 %	< 85 %	< 87 %
+2:46:00	4:31 min/km	3:56 min/km	< 75 %	< 85 %	< 87 %
+2:47:00	4:32 min/km	3:57 min/km	< 75 %	< 85 %	< 87 %
+2:48:00	4:34 min/km	3:59 min/km	< 75 %	< 85 %	< 87 %
+2:49:00	4:35 min/km	4:00 min/km	< 75 %	< 85 %	< 87 %
+2:50:00	4:37 min/km	4:02 min/km	< 75 %	< 85 %	< 87 %
+2:51:00	4:38 min/km	4:03 min/km	< 75 %	< 85 %	< 87 %
+2:52:00	4:40 min/km	4:05 min/km	< 75 %	< 85 %	< 87 %
+2:53:00	4:41 min/km	4:06 min/km	< 75 %	< 85 %	< 87 %
+2:54:00	4:42 min/km	4:07 min/km	< 75 %	< 85 %	< 87 %
+2:55:00	4:44 min/km	4:09 min/km	< 75 %	< 85 %	< 87 %
+2:56:00	4:45 min/km	4:10 min/km	< 75 %	< 85 %	< 87 %
+2:57:00	4:47 min/km	4:12 min/km	< 75 %	< 85 %	< 87 %
+2:58:00	4:48 min/km	4:13 min/km	< 75 %	< 85 %	< 87 %
+2:59:00 / 2:59:59	4:50 min/km	4:15 min/km	< 75 %	< 85 %	< 87 %
+3:00:00	4:51 min/km	4:16 min/km	< 75 %	< 85 %	< 87 %
+3:01:00	4:52 min/km	4:17 min/km	< 75 %	< 85 %	< 87 %
+3:02:00	4:54 min/km	4:19 min/km	< 75 %	< 85 %	< 87 %
+3:03:00	4:55 min/km	4:20 min/km	< 75 %	< 85 %	< 87 %
+3:04:00	4:57 min/km	4:22 min/km	< 75 %	< 85 %	< 87 %
+3:05:00	4:58 min/km	4:23 min/km	< 75 %	< 85 %	< 87 %
+3:06:00	4:59 min/km	4:24 min/km	< 75 %	< 85 %	< 87 %
+3:07:00	5:01 min/km	4:26 min/km	< 75 %	< 85 %	< 87 %
+3:08:00	5:02 min/km	4:27 min/km	< 75 %	< 85 %	< 87 %
+3:09:00	5:04 min/km	4:29 min/km	< 75 %	< 85 %	< 87 %
+3:10:00	5:05 min/km	4:30 min/km	< 75 %	< 85 %	< 87 %
+3:11:00	5:07 min/km	4:32 min/km	< 75 %	< 85 %	< 87 %
+3:12:00	5:08 min/km	4:33 min/km	< 75 %	< 85 %	< 87 %
+3:13:00	5:09 min/km	4:34 min/km	< 75 %	< 85 %	< 87 %
+3:14:00	5:11 min/km	4:36 min/km	< 75 %	< 85 %	< 87 %
+3:15:00	5:12 min/km	4:37 min/km	< 75 %	< 85 %	< 87 %
+3:16:00	5:14 min/km	4:39 min/km	< 75 %	< 85 %	< 87 %
+3:17:00	5:15 min/km	4:40 min/km	< 75 %	< 85 %	< 87 %
+3:18:00	5:17 min/km	4:42 min/km	< 75 %	< 85 %	< 87 %
+3:19:00	5:18 min/km	4:43 min/km	< 75 %	< 85 %	< 87 %
+3:20:00	5:19 min/km	4:44 min/km	< 75 %	< 85 %	< 87 %
+3:21:00	5:21 min/km	4:46 min/km	< 75 %	< 85 %	< 87 %
+3:22:00	5:22 min/km	4:47 min/km	< 75 %	< 85 %	< 87 %
+3:23:00	5:24 min/km	4:49 min/km	< 75 %	< 85 %	< 87 %
+3:24:00	5:25 min/km	4:50 min/km	< 75 %	< 85 %	< 87 %
+3:25:00	5:26 min/km	4:51 min/km	< 75 %	< 85 %	< 87 %
+3:26:00	5:28 min/km	4:53 min/km	< 75 %	< 85 %	< 87 %
+3:27:00	5:29 min/km	4:54 min/km	< 75 %	< 85 %	< 87 %
+3:28:00	5:31 min/km	4:56 min/km	< 75 %	< 85 %	< 87 %
+3:29:00	5:32 min/km	4:57 min/km	< 75 %	< 85 %	< 87 %
+3:30:00	5:34 min/km	4:59 min/km	< 75 %	< 85 %	< 87 %
+3:31:00	5:35 min/km	5:00 min/km	< 75 %	< 85 %	< 87 %
+3:32:00	5:36 min/km	5:01 min/km	< 75 %	< 85 %	< 87 %
+3:33:00	5:38 min/km	5:03 min/km	< 75 %	< 85 %	< 87 %
+3:34:00	5:39 min/km	5:04 min/km	< 75 %	< 85 %	< 87 %
+3:35:00	5:41 min/km	5:06 min/km	< 75 %	< 85 %	< 87 %
+3:36:00	5:42 min/km	5:07 min/km	< 75 %	< 85 %	< 87 %
+3:37:00	5:44 min/km	5:09 min/km	< 75 %	< 85 %	< 87 %
+3:38:00	5:45 min/km	5:10 min/km	< 75 %	< 85 %	< 87 %
+3:39:00	5:46 min/km	5:11 min/km	< 75 %	< 85 %	< 87 %
+3:40:00	5:48 min/km	5:13 min/km	< 75 %	< 85 %	< 87 %
+3:41:00	5:49 min/km	5:14 min/km	< 75 %	< 85 %	< 87 %
+3:42:00	5:51 min/km	5:16 min/km	< 75 %	< 85 %	< 87 %
+3:43:00	5:52 min/km	5:17 min/km	< 75 %	< 85 %	< 87 %
+3:44:00	5:54 min/km	5:19 min/km	< 75 %	< 85 %	< 87 %
+3:45:00	5:55 min/km	5:20 min/km	< 75 %	< 85 %	< 87 %
+3:46:00	5:56 min/km	5:21 min/km	< 75 %	< 85 %	< 87 %
+3:47:00	5:58 min/km	5:23 min/km	< 75 %	< 85 %	< 87 %
+3:48:00	5:59 min/km	5:24 min/km	< 75 %	< 85 %	< 87 %
+3:49:00	6:01 min/km	5:26 min/km	< 75 %	< 85 %	< 87 %
+3:50:00	6:02 min/km	5:27 min/km	< 75 %	< 85 %	< 87 %
+3:51:00	6:03 min/km	5:28 min/km	< 75 %	< 85 %	< 87 %
+3:52:00	6:05 min/km	5:30 min/km	< 75 %	< 85 %	< 87 %
+3:53:00	6:06 min/km	5:31 min/km	< 75 %	< 85 %	< 87 %
+3:54:00	6:08 min/km	5:33 min/km	< 75 %	< 85 %	< 87 %
+3:55:00	6:09 min/km	5:34 min/km	< 75 %	< 85 %	< 87 %
+3:56:00	6:11 min/km	5:36 min/km	< 75 %	< 85 %	< 87 %
+3:57:00	6:12 min/km	5:37 min/km	< 75 %	< 85 %	< 87 %
+3:58:00	6:13 min/km	5:38 min/km	< 75 %	< 85 %	< 87 %
+3:59:00	6:15 min/km	5:40 min/km	< 75 %	< 85 %	< 87 %
+4:00:00	6:16 min/km	5:41 min/km	< 75 %	< 85 %	< 87 %
+4:01:00	6:18 min/km	5:43 min/km	< 75 %	< 85 %	< 87 %
+4:02:00	6:19 min/km	5:44 min/km	< 75 %	< 85 %	< 87 %
+4:03:00	6:21 min/km	5:46 min/km	< 75 %	< 85 %	< 87 %
+4:04:00	6:22 min/km	5:47 min/km	< 75 %	< 85 %	< 87 %
+4:05:00	6:23 min/km	5:48 min/km	< 75 %	< 85 %	< 87 %
+4:06:00	6:25 min/km	5:50 min/km	< 75 %	< 85 %	< 87 %
+4:07:00	6:26 min/km	5:51 min/km	< 75 %	< 85 %	< 87 %
+4:08:00	6:28 min/km	5:53 min/km	< 75 %	< 85 %	< 87 %
+4:09:00	6:29 min/km	5:54 min/km	< 75 %	< 85 %	< 87 %
+4:10:00	6:30 min/km	5:55 min/km	< 75 %	< 85 %	< 87 %
+4:11:00	6:32 min/km	5:57 min/km	< 75 %	< 85 %	< 87 %
+4:12:00	6:33 min/km	5:58 min/km	< 75 %	< 85 %	< 87 %
+4:13:00	6:35 min/km	6:00 min/km	< 75 %	< 85 %	< 87 %
+4:14:00	6:36 min/km	6:01 min/km	< 75 %	< 85 %	< 87 %
+4:15:00	6:38 min/km	6:03 min/km	< 75 %	< 85 %	< 87 %
+4:16:00	6:39 min/km	6:04 min/km	< 75 %	< 85 %	< 87 %
+4:17:00	6:40 min/km	6:05 min/km	< 75 %	< 85 %	< 87 %
+4:18:00	6:42 min/km	6:07 min/km	< 75 %	< 85 %	< 87 %
+4:19:00	6:43 min/km	6:08 min/km	< 75 %	< 85 %	< 87 %
+4:20:00	6:45 min/km	6:10 min/km	< 75 %	< 85 %	< 87 %
+4:21:00	6:46 min/km	6:11 min/km	< 75 %	< 85 %	< 87 %
+4:22:00	6:48 min/km	6:13 min/km	< 75 %	< 85 %	< 87 %
+4:23:00	6:49 min/km	6:14 min/km	< 75 %	< 85 %	< 87 %
+4:24:00	6:50 min/km	6:15 min/km	< 75 %	< 85 %	< 87 %
+4:25:00	6:52 min/km	6:17 min/km	< 75 %	< 85 %	< 87 %
+4:26:00	6:53 min/km	6:18 min/km	< 75 %	< 85 %	< 87 %
+4:27:00	6:55 min/km	6:20 min/km	< 75 %	< 85 %	< 87 %
+4:28:00	6:56 min/km	6:21 min/km	< 75 %	< 85 %	< 87 %
+4:29:00	6:58 min/km	6:23 min/km	< 75 %	< 85 %	< 87 %
+4:30:00	6:59 min/km	6:24 min/km	< 75 %	< 85 %	< 87 %
+Sammenlignende matrise over fysiologiske målspenn
+Tabellen nedenfor gir en samlet oppsummering av fysiologiske rammebetingelser for tre utvalgte måltider.
+
+Parameter / Måltid	2:40:00 Mål	3:00:00 Mål	4:00:00 Mål
+Maratonfart (MP)	3:47 min/km	4:16 min/km	5:41 min/km
+Test 1 (LT2 Fart)	3:29 min/km	3:56 min/km	5:17 min/km
+Test 1 Målpuls	
+88 – 92 % av makspuls
+
+88 – 92 % av makspuls
+
+88 – 92 % av makspuls
+
+Test 2 (MP Fart)	3:47 min/km	4:16 min/km	5:41 min/km
+Test 2 Målpuls	
+80 – 85 % av makspuls
+
+80 – 85 % av makspuls
+
+80 – 85 % av makspuls
+
+Test 3 Del 1 Fart	4:22 min/km	4:51 min/km	6:16 min/km
+Test 3 Del 2 Fart	3:47 min/km	4:16 min/km	5:41 min/km
+Test 3 Puls Del 1 / Del 2	
+< 75 % / < 85 % av makspuls
+
+< 75 % / < 85 % av makspuls
+
+< 75 % / < 85 % av makspuls
+
+Tillatt Dekobling (Pa:HR)	
+<3,0% (Test 2) / <5,0% (Test 3)
+
+<3,0% (Test 2) / <5,0% (Test 3)
+
+<3,0% (Test 2) / <5,0% (Test 3)
+
+  
+Risikodiagnostikk og korrigerende treningsintervensjoner
+Analyse av testdataene gir et empirisk grunnlag for å identificere fysiologiske begrensninger. Dersom utøverens verdier avviker fra tabellverdiene, må treningsarbeidet omstruktureres.   
+
+Diagnostisering og håndtering av begrenset terskelhastighet (LT2-flaskehals)
+Dersom utøveren i Test 1 ikke oppnår tabellfarten for sitt måltid, foreligger det en laktatterskel-flaskehals. Fysiologisk innebærer dette at avstanden mellom LT2-hastighet og maratonhastighet er for liten. Når MP krever mer enn 92–95 % av LT2, vil glykogenforbruket blir for høyt, noe som fører til at utøveren tømmer glykogenlagrene før fullført distanse.   
+
+For å korrigere dette må treningsarbeidet prioritere stimulering av laktat-clearing og vVO 
+2
+​
+ max. Dette oppnås ved ukentlige terskelintervaller, slik som 5×2 km i LT2-fart med 90 sekunders joggepause, eller Yasso 800-intervaller (10×800 meter). Disse øktene øker den enzymatiske kapasiteten for laktattransport og forskyver laktatkurven mot høyre.   
+
+Diagnostisering og reduksjon av kardiovaskulær drift (Kardiovaskulær flaskehals)
+En aerob dekobling (Pa:HR) som overstiger 5,0 % under Test 2 eller Test 3 indikerer kardiovaskulær drift eller utilstrekkelig vaskulær kontroll. Fysiologisk oppstår dette når kjerneytelsen stiger, plasmavolumet faller fra svette, og sirkulerende blod dirigeres ut til huden for avkjøling. Dette tvinger hjertet til å øke frekvensen for å opprettholde minuttvolumet.   
+
+Korreksjon krever økt aerob volum i Sone 2, i kombinasjon med tilpasning av væske- og elektrolyttinntaket. Treningsprogrammet må tilføres ukentlige rolig-økter på 90 til 150 minutter i ren LT1-hastighet (Sone 2 / < 75 % av makspuls) for å stimulere slagvolum og blodvolum. Hydreringsstrategien må justeres for å unngå væsketap over 2,0 % av kroppsvekten.   
+
+Optimalisering av løpsøkonomi, nevromuskulær tretthetsmotstand og glykogenforvaltning
+Dersom utøveren leverer tilfredsstillende resultat på Test 1 og Test 2, men opplever fartsfall eller markant pulsstigning i løpet av de siste 15 kilometerne av Test 3, ligger begrenseren i den nevromuskulære tretthetsmotstanden eller i karbohydratmetabolismen. Eksentrisk muskelbelastning over tid skader myofibrillene, noe som reduserer musklenes elastiske energiretur og øker oksygenkostnaden per meter.   
+
+Tiltak innebærer en toleddet strategi:   
+
+Progresjonslangturer der de siste 10–15 km løpes i eksakt maratonhastighet på allerede trette bein, kombinert med et næringsinntak på 60–90 gram karbohydrater/time.   
+
+Tung, lavrepetisjons styrketrening (knebøy, markløft og tunge tåhev) 1–2 ganger i uken, noe som øker sene- og muskelstivheten (musculotendinous stiffness) og forbedrer løpsøkonomien.   
+
+Konklusjon og strategisk handlingsplan
+Gjennom systematisk bruk av de tre spesifikke testløpene i vinduet 60 til 90 dager før konkurransen, kan utøver og trener objektivt fastslå om den fysiologiske utviklingen er i rute for et hvilket som helst valgt måltid mellom 2:30:00 og 4:30:00.   
+
+Ved å slå opp utøverens spesifikke måltid i kalibreringstabellene for Test 1, Test 2 og Test 3, fås eksakte target-verdier for fart og puls (% av makspuls). Dersom samtlige tre testløp leverer data i henhold til de oppgitte tabellverdiene, viser den fysiologiske utholdenhetsmodellen at utøveren har de nødvendige forutsetningene for å oppnå sin måltid på maratondagen.   
+

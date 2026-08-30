@@ -68,6 +68,12 @@ export type DailyRecord = {
   completed?: string | null;
   /** Løpt distanse denne dagen (km). */
   distanceKm?: number;
+  /** Rå nattlig HRV (ms), til visning og 60-dagers snitt. */
+  hrvMs?: number | null;
+  /** Garmin Training Readiness / restitusjon (0–100). */
+  recoveryScore?: number | null;
+  /** Etasjer gått opp. */
+  floors?: number | null;
 };
 
 /* ---- Typer brukt av eksisterende Garmin-klient (garmin-connect) ---- */
@@ -104,5 +110,6 @@ export interface DayMetrics {
   distance_km: number;
   steps: number | null;
   floors: number | null;
+  recovery: number | null;
   trafikklys: Trafikklys;
 }

@@ -2,6 +2,7 @@
 
 import { CATEGORIES } from "@/lib/categories";
 import { formatNumber } from "@/lib/format";
+import { CATEGORY_ORDER } from "@/lib/trafficLight";
 import type { Category } from "@/lib/types";
 
 export function CategoryDot({
@@ -44,6 +45,90 @@ export function CategoryPill({ category }: { category: Category }) {
       <CategoryDot category={category} size={8} />
       {c.label}
     </span>
+  );
+}
+
+/** Hele trafiklysskalaen, med dagens nivå fremhevet. */
+export function CategoryScaleLegend({
+  active,
+  heading,
+}: {
+  active?: Category;
+  heading?: string;
+}) {
+  return (
+    <div>
+      {heading ? (
+        <p
+          style={{
+            fontSize: "0.68rem",
+            fontWeight: 700,
+            color: "var(--sp-navy)",
+            margin: "0 0 0.45rem",
+            lineHeight: 1.3,
+          }}
+        >
+          {heading}
+        </p>
+      ) : null}
+      <p
+        style={{
+          fontSize: "0.62rem",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          fontWeight: 700,
+          color: "var(--gray-500)",
+          margin: "0 0 0.35rem",
+        }}
+      >
+        Skala · rødt til grønt
+      </p>
+      <div className="flex flex-col gap-1">
+        {[...CATEGORY_ORDER].reverse().map((key) => {
+          const c = CATEGORIES[key];
+          const on = key === active;
+          return (
+            <div
+              key={key}
+              className="flex items-start gap-1.5"
+              style={{
+                borderRadius: "var(--radius-sm)",
+                padding: "0.22rem 0.35rem",
+                background: on ? c.bg : "transparent",
+                border: on ? `1px solid ${c.border}` : "1px solid transparent",
+                opacity: active && !on ? 0.55 : 1,
+              }}
+            >
+              <CategoryDot category={key} size={8} />
+              <div className="min-w-0">
+                <p
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: on ? 700 : 600,
+                    color: c.text,
+                    margin: 0,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {c.label}
+                  {on ? " · denne dagen" : ""}
+                </p>
+                <p
+                  style={{
+                    fontSize: "0.68rem",
+                    color: "var(--gray-600)",
+                    margin: "0.08rem 0 0",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {c.limit}. {c.advice}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

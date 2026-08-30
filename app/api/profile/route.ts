@@ -16,7 +16,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, name, birth_date, weight_kg, max_hr, hr_threshold, weekly_km, hrv_baseline, rhr_baseline",
+      "id, name, birth_date, weight_kg, max_hr, hr_threshold, weekly_km, hrv_baseline, rhr_baseline, weekly_structure",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -55,7 +55,7 @@ export async function PUT(request: Request) {
     .from("profiles")
     .upsert(payload, { onConflict: "id" })
     .select(
-      "id, name, birth_date, weight_kg, max_hr, hr_threshold, weekly_km, hrv_baseline, rhr_baseline",
+      "id, name, birth_date, weight_kg, max_hr, hr_threshold, weekly_km, hrv_baseline, rhr_baseline, weekly_structure",
     )
     .single();
 

@@ -5,12 +5,20 @@ import {
   formatNumber,
   recordDistanceKm,
 } from "@/lib/format";
+import {
+  blendedMilestoneSeconds,
+  clampMarathonSeconds,
+  toIsoDate,
+  type MilestoneLog,
+} from "@/lib/milestones";
 
-/**
- * Dagens maratonpotensial ut fra form (siste 14 dager).
- * Uavhengig nok av måltiden til at f.eks. 3:10 mot 2:59 vises tydelig.
- */
-export function currentMarathonSeconds(
+export type EstimateOptions = {
+  logs?: MilestoneLog[];
+  hrMax?: number | null;
+  asOf?: string;
+};
+
+function formMarathonSeconds(
   targetTimeS: number,
   records: DailyRecord[],
 ): number {
@@ -27,11 +35,39 @@ export function currentMarathonSeconds(
   return Math.round(targetTimeS * (1 + deviationPct));
 }
 
+function asOfIso(records: DailyRecord[], asOf?: string): string {
+  if (asOf) return asOf;
+  const last = records[records.length - 1]?.date;
+  return last ?? toIsoDate();
+}
+
+/**
+ * Dagens maratonpotensial. Garmin-form er utgangspunktet; loggede
+ * milepælsøkter rekalibrerer tallet. Flere og nyere tester veier tyngre.
+ */
+export function currentMarathonSeconds(
+  targetTimeS: number,
+  records: DailyRecord[],
+  options?: EstimateOptions,
+): number {
+  const formS = formMarathonSeconds(targetTimeS, records);
+  const logs = options?.logs ?? [];
+  if (logs.length === 0) return formS;
+
+  const asOf = asOfIso(records, options?.asOf);
+  const blend = blendedMilestoneSeconds(logs, options?.hrMax ?? null, asOf);
+  if (!blend) return formS;
+
+  const trust = 1 - Math.exp(-blend.n * 0.45);
+  return clampMarathonSeconds(formS * (1 - trust) + blend.seconds * trust);
+}
+
 export function predictFinishSeconds(
   targetTimeS: number,
   records: DailyRecord[],
+  options?: EstimateOptions,
 ): number {
-  return currentMarathonSeconds(targetTimeS, records);
+  return currentMarathonSeconds(targetTimeS, records, options);
 }
 
 export type GoalWeekVerdict = {
@@ -49,13 +85,20 @@ export function weekTowardGoal(
   records: DailyRecord[],
   goal: { title: string; targetTimeS: number },
   plannedWeeklyKm?: number,
+  options?: EstimateOptions,
 ): GoalWeekVerdict {
   const week = records.slice(-7);
   const before = records.slice(0, Math.max(0, records.length - 7));
-  const predAfter = predictFinishSeconds(goal.targetTimeS, records);
+  const predAfter = predictFinishSeconds(goal.targetTimeS, records, options);
   const predBefore = predictFinishSeconds(
     goal.targetTimeS,
     before.length ? before : week,
+    {
+      ...options,
+      asOf: before.length
+        ? before[before.length - 1]?.date
+        : week[0]?.date,
+    },
   );
   const gapAfter = predAfter - goal.targetTimeS;
   const gapBefore = predBefore - goal.targetTimeS;
@@ -121,13 +164,21 @@ export function marathonFormTrend(
   records: DailyRecord[],
   goal: { eventDate: string; targetTimeS: number },
   from = new Date(),
+  options?: EstimateOptions,
 ): MarathonFormTrend {
   const daysLeft = Math.max(0, daysUntil(goal.eventDate, from));
-  const todayS = currentMarathonSeconds(goal.targetTimeS, records);
+  const todayS = currentMarathonSeconds(goal.targetTimeS, records, {
+    ...options,
+    asOf: options?.asOf ?? toIsoDate(from),
+  });
 
   const history: TrendPoint[] = records.map((_, i) => ({
     t: daysUntil(records[i].date, from),
-    seconds: currentMarathonSeconds(goal.targetTimeS, records.slice(0, i + 1)),
+    seconds: currentMarathonSeconds(
+      goal.targetTimeS,
+      records.slice(0, i + 1),
+      { ...options, asOf: records[i].date },
+    ),
   }));
 
   if (history.length === 0) {
@@ -171,4 +222,26 @@ export function marathonFormTrend(
     onTrack,
     requiredTodayS,
   };
+}
+
+/** 7-dagers glidende ukesvolum (km) for hver dag. */
+export function rollingWeeklyKm(records: DailyRecord[], window = 7): number[] {
+  return records.map((_, i) => {
+    const slice = records.slice(Math.max(0, i - window + 1), i + 1);
+    return slice.reduce((sum, r) => sum + recordDistanceKm(r), 0);
+  });
+}
+
+/** Estimert sluttid dag for dag (sekunder) ut fra historikk frem til den dagen. */
+export function dailyGoalEstimateSeconds(
+  records: DailyRecord[],
+  targetTimeS: number,
+  options?: EstimateOptions,
+): number[] {
+  return records.map((_, i) =>
+    currentMarathonSeconds(targetTimeS, records.slice(0, i + 1), {
+      ...options,
+      asOf: records[i].date,
+    }),
+  );
 }
