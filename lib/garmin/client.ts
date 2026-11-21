@@ -128,6 +128,16 @@ async function getClient(): Promise<GarminConnect> {
   return loginFresh();
 }
 
+let memoryDisplayName: string | null = null;
+
+async function getDisplayName(client: GarminConnect): Promise<string> {
+  if (memoryDisplayName) return memoryDisplayName;
+  const profile = await client.getUserProfile();
+  if (!profile?.displayName) throw new Error("Garmin-profilen mangler displayName");
+  memoryDisplayName = profile.displayName;
+  return memoryDisplayName;
+}
+
 async function withGarmin<T>(fn: (client: GarminConnect) => Promise<T>): Promise<T> {
   const client = await getClient();
   try {
@@ -527,6 +537,7 @@ function asRows(data: unknown): unknown[] {
       "hrvSummaries",
       "dailySleepList",
       "calendarDays",
+      "individualStats",
     ]) {
       if (Array.isArray(o[key])) return o[key] as unknown[];
     }
@@ -572,8 +583,10 @@ async function fetchSleepByDate(
   const map = new Map<string, number>();
   for (const [from, to] of dateChunks(startISO, endISO, 28)) {
     try {
+      // Gammelt endepunkt (wellness-service/stats/sleep/daily) gir 404; sleep-service
+      // svarer med { overallStats, individualStats: [{ calendarDate, values: { sleepScore } }] }.
       const rows = await client.get<unknown>(
-        `https://connectapi.garmin.com/wellness-service/stats/sleep/daily/${from}/${to}`,
+        `https://connectapi.garmin.com/sleep-service/stats/sleep/daily/${from}/${to}`,
       );
       const list = asRows(rows);
       for (const row of list) {
@@ -688,8 +701,10 @@ export async function fetchHistoryMetrics(
     const today = formatDate(end);
     if (dates.includes(today)) {
       try {
+        // Garmin krever displayName i stien; uten den svarer endepunktet 403.
+        const displayName = await getDisplayName(client);
         const summary = await client.get<Record<string, unknown>>(
-          `https://connectapi.garmin.com/usersummary-service/usersummary/daily/${today}`,
+          `https://connectapi.garmin.com/usersummary-service/usersummary/daily/${encodeURIComponent(displayName)}?calendarDate=${today}`,
         );
         const liveBb = extractBodyBatteryNow(summary);
         if (liveBb != null) bbByDate.set(today, liveBb);
