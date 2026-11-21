@@ -108,7 +108,8 @@ async function getClient(): Promise<GarminConnect> {
   const stored = memoryTokens ?? (await loadTokensFromDb());
   if (stored) {
     try {
-      const client = new GarminConnect(getCredentials());
+      // Brukernavn/passord brukes ikke når vi laster lagrede tokens.
+      const client = new GarminConnect({ username: "token", password: "token" });
       client.loadToken(
         stored.oauth1 as never,
         stored.oauth2 as never,
@@ -129,6 +130,65 @@ async function getClient(): Promise<GarminConnect> {
 }
 
 let memoryDisplayName: string | null = null;
+
+export type GarminConnectResult =
+  | { ok: true; displayName: string }
+  | { ok: false; reason: "invalid_credentials" | "mfa" | "rate_limited" | "unknown" };
+
+/**
+ * Kobler Garmin til brukeren: logger inn én gang med e-post/passord, bekrefter
+ * sesjonen mot profilen og lagrer kun OAuth-tokens. Passordet lagres aldri.
+ */
+export async function connectGarminAccount(
+  userId: string,
+  username: string,
+  password: string,
+): Promise<GarminConnectResult> {
+  const client = new GarminConnect({ username, password });
+  try {
+    await client.login();
+  } catch (err) {
+    if (isMfaError(err)) return { ok: false, reason: "mfa" };
+    if (isRateLimitError(err)) return { ok: false, reason: "rate_limited" };
+    const msg = String((err as Error)?.message ?? err).toLowerCase();
+    if (/401|403|credential|password|unauthor|invalid/.test(msg)) {
+      return { ok: false, reason: "invalid_credentials" };
+    }
+    console.error("[garmin] connect login failed", err);
+    return { ok: false, reason: "unknown" };
+  }
+
+  let displayName: string;
+  try {
+    const profile = await client.getUserProfile();
+    if (!profile?.displayName) throw new Error("Profil uten displayName");
+    displayName = profile.displayName;
+  } catch (err) {
+    console.error("[garmin] connect verify failed", err);
+    return { ok: false, reason: "unknown" };
+  }
+
+  const tokens = exportTokens(client);
+  const admin = createAdminClient();
+  const { error } = await admin.from("garmin_tokens").upsert({
+    id: 1,
+    oauth1: tokens.oauth1,
+    oauth2: tokens.oauth2,
+    user_id: userId,
+    display_name: displayName,
+    verified_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  if (error) {
+    console.error("[garmin] connect save failed", error);
+    return { ok: false, reason: "unknown" };
+  }
+
+  memoryClient = client;
+  memoryTokens = tokens;
+  memoryDisplayName = displayName;
+  return { ok: true, displayName };
+}
 
 async function getDisplayName(client: GarminConnect): Promise<string> {
   if (memoryDisplayName) return memoryDisplayName;

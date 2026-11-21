@@ -1,6 +1,11 @@
 import { LoginForm } from "@/components/LoginForm";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
     <main
       className="app-min-h flex items-center justify-center"
@@ -12,7 +17,7 @@ export default function LoginPage() {
       }}
     >
       <div className="mx-auto w-full max-w-5xl">
-        <LoginForm />
+        <LoginForm error={error} />
       </div>
     </main>
   );

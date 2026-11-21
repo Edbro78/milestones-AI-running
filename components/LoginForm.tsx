@@ -1,14 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
-export function LoginForm() {
+export function LoginForm({ error }: { error?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    error ? "Innloggingen feilet. Prøv igjen." : null,
+  );
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: FormEvent) {
@@ -18,39 +20,18 @@ export function LoginForm() {
 
     try {
       if (!getSupabaseUrl() || !getSupabaseAnonKey()) {
-        throw new Error(
-          "Supabase er ikke konfigurert (NEXT_PUBLIC_SUPABASE_URL / ANON_KEY).",
-        );
+        throw new Error("Supabase er ikke konfigurert (NEXT_PUBLIC_SUPABASE_URL / ANON_KEY).");
       }
-
       const supabase = createClient();
-
-      if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          if (error.message.toLowerCase().includes("invalid login")) {
-            throw new Error(
-              "Feil e-post eller passord, eller kontoen finnes ikke. Prøv «Opprett konto» først.",
-            );
-          }
-          throw error;
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        if (error.message.toLowerCase().includes("invalid login")) {
+          throw new Error("Feil e-post eller passord.");
         }
-        window.location.href = "/dashboard";
-        return;
+        throw error;
       }
-
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-
-      if (data.session) {
-        window.location.href = "/dashboard";
-        return;
-      }
-
-      setMessage(
-        "Kontoen er opprettet. Er e-postbekreftelse på i Supabase, sjekk innboksen. Ellers kan du logge inn nå.",
-      );
-      setMode("login");
+      // Dashboardet sender videre til Garmin-tilkobling hvis den mangler.
+      window.location.href = "/dashboard";
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Innlogging feilet");
     } finally {
@@ -58,66 +39,26 @@ export function LoginForm() {
     }
   }
 
-  function switchMode(next: "login" | "signup") {
-    setMode(next);
-    setMessage(null);
-  }
-
-  const tabBase =
-    "h-10 rounded-md text-sm font-semibold transition";
-  const tabActive = { background: "var(--white)", color: "var(--sp-navy)", boxShadow: "var(--shadow-sm)" };
-  const tabIdle = { background: "transparent", color: "var(--gray-500)" };
-
   return (
     <form
       onSubmit={onSubmit}
       className="panel mx-auto w-full max-w-md p-6 sm:p-8"
       style={{ borderRadius: "var(--radius-lg)" }}
     >
-      <a
+      <Link
         href="/"
         className="mb-6 inline-flex items-center gap-1 text-sm font-medium"
         style={{ color: "var(--gray-500)" }}
       >
         <span aria-hidden="true">←</span> Tilbake
-      </a>
+      </Link>
 
       <h1 className="text-3xl" style={{ fontWeight: 500, color: "var(--sp-navy)" }}>
-        {mode === "login" ? "Logg inn" : "Opprett konto"}
+        Logg inn
       </h1>
       <p className="mt-1.5 text-[15px]" style={{ color: "var(--gray-500)" }}>
-        {mode === "login"
-          ? "Velkommen tilbake til Milestones."
-          : "Kom i gang med din personlige løpetrener."}
+        Velkommen tilbake til Milestones.
       </p>
-
-      <div
-        role="tablist"
-        aria-label="Velg innlogging eller registrering"
-        className="mt-6 grid grid-cols-2 gap-1 p-1"
-        style={{ background: "var(--gray-100)", borderRadius: "var(--radius-md)" }}
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "login"}
-          onClick={() => switchMode("login")}
-          className={tabBase}
-          style={mode === "login" ? tabActive : tabIdle}
-        >
-          Logg inn
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "signup"}
-          onClick={() => switchMode("signup")}
-          className={tabBase}
-          style={mode === "signup" ? tabActive : tabIdle}
-        >
-          Opprett konto
-        </button>
-      </div>
 
       <div className="mt-6 flex flex-col gap-4">
         <div>
@@ -146,16 +87,16 @@ export function LoginForm() {
             type="password"
             placeholder="••••••••"
             required
-            minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            autoComplete="current-password"
           />
         </div>
       </div>
 
       {message ? (
         <p
+          role="alert"
           className="mt-4 p-3 text-sm"
           style={{
             background: "var(--blue-50)",
@@ -169,7 +110,7 @@ export function LoginForm() {
       ) : null}
 
       <button type="submit" className="btn btn-primary mt-6 w-full" disabled={loading}>
-        {loading ? "Vent…" : mode === "login" ? "Logg inn" : "Opprett konto"}
+        {loading ? "Vent…" : "Logg inn"}
       </button>
     </form>
   );
