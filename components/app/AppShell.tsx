@@ -72,20 +72,28 @@ export function AppShell({ userEmail }: { userEmail: string }) {
     hrvBaseline: null,
     rhrBaseline: null,
   });
-  const [records, setRecords] = useState<DailyRecord[]>(
-    () => loadLocalRecords()?.records ?? [],
-  );
+  // Start likt på server og klient; lokal cache (localStorage) lastes etter mount.
+  // Å lese den i useState-initialisereren ga hydreringsfeil.
+  const [records, setRecords] = useState<DailyRecord[]>([]);
   const [milestoneLogs, setMilestoneLogs] = useState<MilestoneLog[]>([]);
-  const [garmin, setGarmin] = useState<GarminStatus>(() => {
-    const stored = loadLocalRecords();
-    return {
-      connected: Boolean(stored?.records.length),
-      mock: false,
-      lastSync: stored?.lastSync ?? null,
-      error: null,
-      loading: true,
-    };
+  const [garmin, setGarmin] = useState<GarminStatus>({
+    connected: false,
+    mock: false,
+    lastSync: null,
+    error: null,
+    loading: true,
   });
+
+  useEffect(() => {
+    const stored = loadLocalRecords();
+    if (!stored?.records.length) return;
+    setRecords(stored.records);
+    setGarmin((g) => ({
+      ...g,
+      connected: true,
+      lastSync: g.lastSync ?? stored.lastSync ?? null,
+    }));
+  }, []);
 
   useEffect(() => {
     setMilestoneLogs(loadMilestoneLogs());
