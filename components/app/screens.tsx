@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { CATEGORIES, METRIC_META, METRIC_ORDER } from "@/lib/categories";
 import { coachReply, suggestSession } from "@/lib/coach";
 import {
@@ -8,6 +8,7 @@ import {
   formatDate,
   formatDuration,
   formatNumber,
+  formatPace,
   formatShortDay,
   formatSigned,
   parseTimeToSeconds,
@@ -394,6 +395,91 @@ function dash(value: number | null | undefined, decimals = 0, suffix = ""): stri
   return `${formatNumber(value, decimals)}${suffix}`;
 }
 
+type RunRow = {
+  key: string;
+  date: string;
+  distanceKm: number;
+  durationSec: number | null;
+  avgHr: number | null;
+};
+
+/** Løpeturer i perioden, nyeste først. Dager fra eldre cache uten `runs` vises med km alene. */
+function runRows(week: DailyRecord[]): RunRow[] {
+  const rows: RunRow[] = [];
+  for (const r of week) {
+    if (r.runs) {
+      r.runs.forEach((run, i) =>
+        rows.push({
+          key: `${r.date}-${i}`,
+          date: r.date,
+          distanceKm: run.distanceKm,
+          durationSec: run.durationSec || null,
+          avgHr: run.avgHr,
+        }),
+      );
+    } else {
+      const km = recordDistanceKm(r);
+      if (km > 0) {
+        rows.push({ key: r.date, date: r.date, distanceKm: km, durationSec: null, avgHr: null });
+      }
+    }
+  }
+  return rows.reverse();
+}
+
+function RunsTable({ week }: { week: DailyRecord[] }) {
+  const rows = runRows(week);
+  const cell: CSSProperties = { padding: "0.3rem 0", fontSize: "0.8rem", textAlign: "right" };
+  const head: CSSProperties = {
+    ...cell,
+    fontSize: "0.62rem",
+    fontWeight: 600,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "var(--gray-500)",
+  };
+
+  return (
+    <div style={{ marginTop: "0.7rem", minHeight: 0, overflowY: "auto" }}>
+      <SectionTitle>Løpeturer siste 7 dager</SectionTitle>
+      {rows.length === 0 ? (
+        <p style={{ margin: "0.3rem 0 0", fontSize: "0.8rem", color: "var(--gray-500)" }}>
+          Ingen løpeturer siste 7 dager.
+        </p>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border)" }}>
+              <th style={{ ...head, textAlign: "left" }}>Dag</th>
+              <th style={head}>Km</th>
+              <th style={head}>Tid</th>
+              <th style={head}>Tempo</th>
+              <th style={head}>Puls</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key} style={{ borderBottom: "1px solid var(--border)" }}>
+                <td style={{ ...cell, textAlign: "left", color: "var(--gray-600)" }}>
+                  {formatShortDay(row.date)}
+                </td>
+                <td style={{ ...cell, fontWeight: 600 }}>{formatNumber(row.distanceKm, 1)}</td>
+                <td style={cell}>{row.durationSec ? formatDuration(row.durationSec) : "—"}</td>
+                <td style={cell}>
+                  {row.durationSec && row.distanceKm > 0
+                    ? formatPace(row.durationSec / row.distanceKm).replace("/km", "")
+                    : "—"}
+                </td>
+                <td style={cell}>{row.avgHr ? Math.round(row.avgHr) : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export function ReportScreen({
   records,
   weeklyKm,
@@ -485,7 +571,15 @@ export function ReportScreen({
         </p>
       </Card>
 
-      <Card style={{ padding: "0.65rem 0.85rem", flex: 1, minHeight: 0 }}>
+      <Card
+        style={{
+          padding: "0.65rem 0.85rem",
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <SectionTitle>
           {lastSync
             ? `Ved synk ${new Date(lastSync).toLocaleString("nb-NO", {
@@ -518,6 +612,8 @@ export function ReportScreen({
             </div>
           ))}
         </div>
+
+        <RunsTable week={week} />
       </Card>
 
       <Card style={{ padding: "0.65rem 0.75rem", position: "relative" }}>

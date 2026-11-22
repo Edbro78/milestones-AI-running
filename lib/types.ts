@@ -74,6 +74,18 @@ export type DailyRecord = {
   recoveryScore?: number | null;
   /** Etasjer gått opp. */
   floors?: number | null;
+  /** Løpeturer denne dagen fra Garmin. `undefined` = ikke hentet (eldre cache). */
+  runs?: RunSummary[];
+};
+
+/** Én løpetur fra Garmin, til visning i tabeller. */
+export type RunSummary = {
+  /** Lokal starttid («YYYY-MM-DD HH:mm:ss») hvis kjent. */
+  startTime: string | null;
+  name: string;
+  distanceKm: number;
+  durationSec: number;
+  avgHr: number | null;
 };
 
 /* ---- Typer brukt av eksisterende Garmin-klient (garmin-connect) ---- */

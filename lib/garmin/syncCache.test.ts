@@ -31,3 +31,19 @@ describe("mergeRecords", () => {
     expect(merged[0].date).toBe(a.date);
   });
 });
+
+describe("mergeRecords runs", () => {
+  const run = { startTime: null, name: "Løp", distanceKm: 5, durationSec: 1500, avgHr: 150 };
+
+  it("keeps cached runs when the incoming row has not fetched them", () => {
+    const [day] = getMockRecords(1);
+    const merged = mergeRecords([{ ...day, runs: [run] }], [{ ...day, runs: undefined }]);
+    expect(merged[0].runs).toEqual([run]);
+  });
+
+  it("replaces runs when the incoming row has fetched them (also empty)", () => {
+    const [day] = getMockRecords(1);
+    const merged = mergeRecords([{ ...day, runs: [run] }], [{ ...day, runs: [] }]);
+    expect(merged[0].runs).toEqual([]);
+  });
+});

@@ -369,6 +369,7 @@ export async function fetchDailySnapshot(date = todayISO()): Promise<GarminSnaps
 export async function fetchRecentActivities(days = 90): Promise<
   Array<{
     date: string;
+    startTime: string | null;
     name: string;
     distanceKm: number;
     durationSec: number;
@@ -396,6 +397,7 @@ export async function fetchRecentActivities(days = 90): Promise<
         };
         return {
           date: (act.startTimeLocal || "").slice(0, 10),
+          startTime: act.startTimeLocal ?? null,
           name: act.activityName || "Aktivitet",
           distanceKm: Math.round(((act.distance || 0) / 1000) * 100) / 100,
           durationSec: Math.round(act.duration || 0),
@@ -717,8 +719,10 @@ export async function fetchHistoryMetrics(
     const endISO = formatDate(end);
 
     const dates: string[] = [];
+    // Sammenlign på dato, ikke klokkeslett: start står kl. 12, så i dag falt
+    // ellers ut når synken kjørte før kl. 12.
     const cursor = new Date(start);
-    while (cursor <= end) {
+    while (formatDate(cursor) <= endISO) {
       dates.push(formatDate(cursor));
       cursor.setDate(cursor.getDate() + 1);
     }

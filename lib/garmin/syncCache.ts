@@ -33,7 +33,11 @@ export function mergeRecords(
 ): DailyRecord[] {
   const map = new Map<string, DailyRecord>();
   for (const row of existing) map.set(row.date, row);
-  for (const row of incoming) map.set(row.date, row);
+  for (const row of incoming) {
+    const prev = map.get(row.date);
+    // Behold kjente løpeturer når den nye raden ikke har hentet dem.
+    map.set(row.date, row.runs === undefined && prev?.runs ? { ...row, runs: prev.runs } : row);
+  }
   const cutoff = daysAgoISO(keepDays - 1);
   return [...map.values()]
     .filter((row) => row.date >= cutoff)

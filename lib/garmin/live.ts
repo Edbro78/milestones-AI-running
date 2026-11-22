@@ -9,7 +9,7 @@ import {
   fetchRecentActivities,
 } from "@/lib/garmin/client";
 import { evaluate } from "@/lib/trafficLight";
-import type { DailyRecord, DayMetrics, Metrics } from "@/lib/types";
+import type { DailyRecord, DayMetrics, Metrics, RunSummary } from "@/lib/types";
 import { daysBetween, todayISO } from "@/lib/time";
 
 const round = (n: number, d = 0) => {
@@ -28,6 +28,12 @@ export type GarminSyncResult = {
 
 let memoryHistory: DayMetrics[] = [];
 
+function daysAgoISO(n: number): string {
+  const d = new Date(todayISO() + "T12:00:00");
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 function mergeHistory(existing: DayMetrics[], incoming: DayMetrics[]): DayMetrics[] {
   const map = new Map(existing.map((d) => [d.date, d]));
   for (const day of incoming) map.set(day.date, day);
@@ -42,12 +48,18 @@ export async function syncGarminRecords(
   days = 60,
   fromISO?: string,
 ): Promise<GarminSyncResult> {
+  // Alltid minst de siste 7 dagene, så løpetabellen «siste 7 dager» får full detalj.
+  const sevenDaysAgo = daysAgoISO(6);
+  if (fromISO && fromISO > sevenDaysAgo) fromISO = sevenDaysAgo;
   const incremental = Boolean(fromISO);
+  const activityDays = incremental ? daysBetween(fromISO!, todayISO()) + 1 : days;
+  let activitiesOk = true;
   const [freshHistory, activities, todaySnap] = await Promise.all([
     fetchHistoryMetrics(days, fromISO),
-    fetchRecentActivities(incremental ? Math.max(3, daysBetween(fromISO!, todayISO()) + 1) : days).catch(
-      () => [],
-    ),
+    fetchRecentActivities(activityDays).catch(() => {
+      activitiesOk = false;
+      return [] as Awaited<ReturnType<typeof fetchRecentActivities>>;
+    }),
     incremental ? Promise.resolve(null) : fetchDailySnapshot().catch(() => null),
   ]);
 
@@ -79,6 +91,25 @@ export async function syncGarminRecords(
     const prev = activityByDate.get(a.date);
     activityByDate.set(a.date, prev ? `${prev}; ${label}` : label);
   }
+
+  // Løpeturer per dag. Bare dager innenfor aktivitetsvinduet får `runs`;
+  // eldre dager beholder det klienten har i cache.
+  const runsWindowStart = daysAgoISO(activityDays - 1);
+  const runsByDate = new Map<string, RunSummary[]>();
+  for (const a of activities) {
+    if (!a.date || !a.type.toLowerCase().includes("run")) continue;
+    const list = runsByDate.get(a.date) ?? [];
+    list.push({
+      startTime: a.startTime,
+      name: a.name,
+      distanceKm: a.distanceKm,
+      durationSec: a.durationSec,
+      avgHr: a.avgHr,
+    });
+    runsByDate.set(a.date, list);
+  }
+  const runsFor = (date: string): RunSummary[] | undefined =>
+    activitiesOk && date >= runsWindowStart ? (runsByDate.get(date) ?? []) : undefined;
 
   const records: DailyRecord[] = history.map((day, i) => {
     const hrvHistory = history
@@ -134,6 +165,7 @@ export async function syncGarminRecords(
       hrvMs: day.hrv,
       recoveryScore,
       floors: day.floors,
+      runs: runsFor(day.date),
     };
   });
 
