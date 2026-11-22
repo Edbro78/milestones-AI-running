@@ -26,7 +26,8 @@ export type GarminSyncResult = {
   error?: string;
 };
 
-let memoryHistory: DayMetrics[] = [];
+/** Siste kjente historikk per app-bruker (cache i serverminnet). */
+const memoryHistory = new Map<string, DayMetrics[]>();
 
 function daysAgoISO(n: number): string {
   const d = new Date(todayISO() + "T12:00:00");
@@ -45,6 +46,7 @@ function mergeHistory(existing: DayMetrics[], incoming: DayMetrics[]): DayMetric
  * `fromISO` = hent bare fra denne datoen (inkl.) — bruk cache for eldre dager.
  */
 export async function syncGarminRecords(
+  userId: string,
   days = 60,
   fromISO?: string,
 ): Promise<GarminSyncResult> {
@@ -55,16 +57,16 @@ export async function syncGarminRecords(
   const activityDays = incremental ? daysBetween(fromISO!, todayISO()) + 1 : days;
   let activitiesOk = true;
   const [freshHistory, activities, todaySnap] = await Promise.all([
-    fetchHistoryMetrics(days, fromISO),
-    fetchRecentActivities(activityDays).catch(() => {
+    fetchHistoryMetrics(userId, days, fromISO),
+    fetchRecentActivities(userId, activityDays).catch(() => {
       activitiesOk = false;
       return [] as Awaited<ReturnType<typeof fetchRecentActivities>>;
     }),
-    incremental ? Promise.resolve(null) : fetchDailySnapshot().catch(() => null),
+    incremental ? Promise.resolve(null) : fetchDailySnapshot(userId).catch(() => null),
   ]);
 
-  const history = mergeHistory(memoryHistory, freshHistory).slice(-days);
-  memoryHistory = history;
+  const history = mergeHistory(memoryHistory.get(userId) ?? [], freshHistory).slice(-days);
+  memoryHistory.set(userId, history);
 
   // Bygg RHR-serie: bruk dagens snapshot der vi har den; ellers ukjent.
   // Historikk-endepunktet leverer ikke RHR per dag i dagens klient.
@@ -179,7 +181,3 @@ export async function syncGarminRecords(
   };
 }
 
-/** Sjekk om Garmin-legitimasjon er satt (uten å logge inn). */
-export function garminCredentialsConfigured(): boolean {
-  return Boolean(process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD);
-}

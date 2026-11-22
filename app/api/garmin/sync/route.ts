@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import {
-  garminCredentialsConfigured,
-  syncGarminRecords,
-} from "@/lib/garmin/live";
+import { syncGarminRecords } from "@/lib/garmin/live";
+import { GarminReconnectRequiredError } from "@/lib/garmin/client";
 import { formatGarminUserError, isRateLimitError } from "@/lib/garmin/errors";
 import { getMockRecords } from "@/lib/mockData";
 
 export const maxDuration = 120;
 
-let rateLimitedUntil = 0;
+/** Garmin-sperre (429) per bruker. */
+const rateLimitedUntil = new Map<string, number>();
 
 /**
  * Synkroniserer Garmin og returnerer evaluerte dagsrader.
@@ -17,7 +16,7 @@ let rateLimitedUntil = 0;
  */
 export async function GET(request: Request) {
   const { user, supabase, errorResponse } = await requireUser();
-  if (errorResponse) return errorResponse;
+  if (errorResponse || !user) return errorResponse!;
 
   const url = new URL(request.url);
   const daysParam = Number(url.searchParams.get("days") || "60");
@@ -42,21 +41,7 @@ export async function GET(request: Request) {
     });
   }
 
-  if (!garminCredentialsConfigured()) {
-    return NextResponse.json(
-      {
-        connected: false,
-        mock: false,
-        lastSync: null,
-        records: [],
-        error:
-          "Garmin er ikke konfigurert. Sett GARMIN_EMAIL og GARMIN_PASSWORD.",
-      },
-      { status: 503 },
-    );
-  }
-
-  if (Date.now() < rateLimitedUntil) {
+  if (Date.now() < (rateLimitedUntil.get(user.id) ?? 0)) {
     return NextResponse.json(
       {
         connected: false,
@@ -70,9 +55,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await syncGarminRecords(days, since);
+    const result = await syncGarminRecords(user.id, days, since);
 
-    if (user && (result.hrvBaseline != null || result.rhrBaseline != null)) {
+    if (result.hrvBaseline != null || result.rhrBaseline != null) {
       const patch: Record<string, number | string> = {
         updated_at: new Date().toISOString(),
       };
@@ -99,9 +84,16 @@ export async function GET(request: Request) {
       rhrBaseline: result.rhrBaseline,
     });
   } catch (err) {
+    if (err instanceof GarminReconnectRequiredError) {
+      // Tokens virker ikke lenger: brukeren må koble til Garmin på nytt.
+      return NextResponse.json(
+        { connected: false, mock: false, lastSync: null, records: [], reconnect: true, error: err.message },
+        { status: 409 },
+      );
+    }
     console.error("[api/garmin/sync]", err);
     if (isRateLimitError(err)) {
-      rateLimitedUntil = Date.now() + 60_000;
+      rateLimitedUntil.set(user.id, Date.now() + 60_000);
     }
     return NextResponse.json(
       {

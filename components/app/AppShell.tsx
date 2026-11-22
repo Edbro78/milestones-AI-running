@@ -27,6 +27,7 @@ import {
 } from "@/components/app/screens";
 import { PlanScreen } from "@/components/app/PlanScreen";
 import { loadStoredGoal } from "@/lib/goalStorage";
+import { setStorageUser } from "@/lib/userStorage";
 import type { Goal } from "@/lib/mockData";
 
 type TabKey = "start" | "rapport" | "okt" | "plan" | "milestones";
@@ -60,7 +61,9 @@ export type GarminStatus = {
   loading: boolean;
 };
 
-export function AppShell({ userEmail }: { userEmail: string }) {
+export function AppShell({ userEmail, userId }: { userEmail: string; userId: string }) {
+  // Lokale data (cache, mål, ukeplan, milepæler) lagres per bruker i nettleseren.
+  setStorageUser(userId);
   const [tab, setTab] = useState<TabKey>("start");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sheet, setSheet] = useState<{ title: string; node: ReactNode } | null>(
@@ -198,6 +201,11 @@ export function AppShell({ userEmail }: { userEmail: string }) {
       if (since) qs.set("since", since);
       const res = await fetch(`/api/garmin/sync?${qs.toString()}`);
       const data = await res.json();
+      if (data.reconnect) {
+        // Garmin-tokens virker ikke lenger: send brukeren til «Koble til Garmin».
+        window.location.href = "/onboarding";
+        return;
+      }
       if (!res.ok || data.error) {
         setGarmin((g) => ({
           connected: existing.length > 0,

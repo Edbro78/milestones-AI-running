@@ -1,3 +1,4 @@
+import { readUserItem, writeUserItem } from "@/lib/userStorage";
 import { MOCK_PROFILE, type Profile } from "@/lib/mockData";
 import {
   emptyWeekPlan,
@@ -33,7 +34,7 @@ export function ageFromBirthDate(birthDate: string): number {
 export function loadLocalProfile(): Profile | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = readUserItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Profile>;
     return { ...MOCK_PROFILE, ...parsed };
@@ -44,7 +45,7 @@ export function loadLocalProfile(): Profile | null {
 
 export function saveLocalProfile(profile: Profile): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  writeUserItem(STORAGE_KEY, JSON.stringify(profile));
 }
 
 /** @deprecated Bruk loadLocalProfile — beholdt for eksisterende kall. */

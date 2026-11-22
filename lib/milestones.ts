@@ -1,3 +1,4 @@
+import { readUserItem, writeUserItem } from "@/lib/userStorage";
 import { formatDate, formatNumber, formatPace } from "@/lib/format";
 
 export type MilestoneKind = "lt2" | "mp" | "long";
@@ -434,7 +435,7 @@ export function emptyLogs(): MilestoneLog[] {
 export function loadMilestoneLogs(): MilestoneLog[] {
   if (typeof window === "undefined") return emptyLogs();
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = readUserItem(STORAGE_KEY);
     if (!raw) return emptyLogs();
     const parsed = JSON.parse(raw) as MilestoneLog[];
     return Array.isArray(parsed) ? parsed : emptyLogs();
@@ -446,7 +447,7 @@ export function loadMilestoneLogs(): MilestoneLog[] {
 export function saveMilestoneLogs(logs: MilestoneLog[]): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+    writeUserItem(STORAGE_KEY, JSON.stringify(logs));
   } catch {
     // ignore
   }

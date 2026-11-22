@@ -1,3 +1,4 @@
+import { readUserItem, writeUserItem } from "@/lib/userStorage";
 export type DistanceKind = "kort" | "middels" | "lang";
 export type EffortKind = "rolig" | "middels" | "hard";
 export type WeekdayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -78,7 +79,7 @@ export function todayWeekdayIndex(from = new Date()): number {
 export function loadWeekPlan(): WeekPlan {
   if (typeof window === "undefined") return emptyWeekPlan();
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = readUserItem(STORAGE_KEY);
     if (!raw) return emptyWeekPlan();
     const parsed = JSON.parse(raw) as Partial<WeekPlan>;
     return { ...emptyWeekPlan(), ...parsed };
@@ -89,7 +90,7 @@ export function loadWeekPlan(): WeekPlan {
 
 export function saveWeekPlan(plan: WeekPlan): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+  writeUserItem(STORAGE_KEY, JSON.stringify(plan));
 }
 
 export function hasPlannedSessions(plan: WeekPlan | null | undefined): boolean {

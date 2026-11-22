@@ -17,16 +17,16 @@ type OauthBundle = {
   oauth2: Record<string, unknown>;
 };
 
-let memoryClient: GarminConnect | null = null;
-let memoryTokens: OauthBundle | null = null;
+/** Innloggede Garmin-klienter per app-bruker (gjenbrukes mellom forespørsler). */
+type Session = { client: GarminConnect; displayName: string | null };
+const sessions = new Map<string, Session>();
 
-function getCredentials() {
-  const username = process.env.GARMIN_EMAIL;
-  const password = process.env.GARMIN_PASSWORD;
-  if (!username || !password) {
-    throw new Error("Missing GARMIN_EMAIL or GARMIN_PASSWORD");
+/** Kastes når brukerens Garmin-tokens ikke virker og Garmin må kobles til på nytt. */
+export class GarminReconnectRequiredError extends Error {
+  constructor() {
+    super("Garmin-tilkoblingen har utløpt. Koble til Garmin på nytt.");
+    this.name = "GarminReconnectRequiredError";
   }
-  return { username, password };
 }
 
 function formatDate(d: Date): string {
@@ -39,32 +39,52 @@ function daysAgo(n: number): Date {
   return d;
 }
 
-async function loadTokensFromDb(): Promise<OauthBundle | null> {
+function isAuthError(err: unknown): boolean {
+  const msg = String((err as Error)?.message ?? err);
+  return /\b(401|403)\b|unauthori[sz]ed|forbidden/i.test(msg);
+}
+
+async function loadTokensFromDb(
+  userId: string,
+): Promise<(OauthBundle & { displayName: string | null }) | null> {
   try {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("garmin_tokens")
-      .select("oauth1, oauth2")
-      .eq("id", 1)
+      .select("oauth1, oauth2, display_name")
+      .eq("user_id", userId)
       .maybeSingle();
     if (error || !data) return null;
-    return { oauth1: data.oauth1, oauth2: data.oauth2 };
+    return { oauth1: data.oauth1, oauth2: data.oauth2, displayName: data.display_name ?? null };
   } catch {
     return null;
   }
 }
 
-async function saveTokensToDb(tokens: OauthBundle): Promise<void> {
+async function saveTokensToDb(userId: string, tokens: OauthBundle): Promise<void> {
   try {
     const admin = createAdminClient();
-    await admin.from("garmin_tokens").upsert({
-      id: 1,
-      oauth1: tokens.oauth1,
-      oauth2: tokens.oauth2,
-      updated_at: new Date().toISOString(),
-    });
+    await admin
+      .from("garmin_tokens")
+      .update({
+        oauth1: tokens.oauth1,
+        oauth2: tokens.oauth2,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
   } catch (err) {
     console.error("[garmin] Failed to persist tokens to Supabase:", err);
+  }
+}
+
+/** Tokens virker ikke lenger: krev ny tilkobling (appen sendes til «Koble til Garmin»). */
+async function markReconnectRequired(userId: string): Promise<void> {
+  sessions.delete(userId);
+  try {
+    const admin = createAdminClient();
+    await admin.from("garmin_tokens").update({ verified_at: null }).eq("user_id", userId);
+  } catch (err) {
+    console.error("[garmin] Failed to mark reconnect required:", err);
   }
 }
 
@@ -76,60 +96,30 @@ function exportTokens(client: GarminConnect): OauthBundle {
   };
 }
 
-async function loginFresh(): Promise<GarminConnect> {
-  const credentials = getCredentials();
-  const client = new GarminConnect(credentials);
+async function getClient(userId: string): Promise<GarminConnect> {
+  const cached = sessions.get(userId);
+  if (cached) return cached.client;
+
+  const stored = await loadTokensFromDb(userId);
+  if (!stored) throw new GarminReconnectRequiredError();
+
+  // Brukernavn/passord brukes ikke når vi laster lagrede tokens.
+  const client = new GarminConnect({ username: "token", password: "token" });
+  client.loadToken(stored.oauth1 as never, stored.oauth2 as never);
   try {
-    await client.login();
+    // Sjekk at sesjonen virker (fornyer oauth2 automatisk ved behov).
+    await client.getUserProfile();
   } catch (err) {
-    if (isMfaError(err)) {
-      console.error(
-        "[garmin] MFA required. This app has no MFA UI. Disable MFA for the Garmin account used in GARMIN_EMAIL, or complete MFA manually and re-export tokens.",
-        err,
-      );
-      throw new Error(
-        "Garmin MFA er påkrevd. Skru av MFA for kontoen eller løs MFA manuelt – se serverloggen.",
-      );
+    if (isAuthError(err)) {
+      console.warn("[garmin] Stored tokens rejected, reconnect required:", err);
+      await markReconnectRequired(userId);
+      throw new GarminReconnectRequiredError();
     }
     throw err;
   }
-  const tokens = exportTokens(client);
-  memoryTokens = tokens;
-  await saveTokensToDb(tokens);
-  memoryClient = client;
+  sessions.set(userId, { client, displayName: stored.displayName });
   return client;
 }
-
-async function getClient(): Promise<GarminConnect> {
-  if (memoryClient && memoryTokens) {
-    return memoryClient;
-  }
-
-  const stored = memoryTokens ?? (await loadTokensFromDb());
-  if (stored) {
-    try {
-      // Brukernavn/passord brukes ikke når vi laster lagrede tokens.
-      const client = new GarminConnect({ username: "token", password: "token" });
-      client.loadToken(
-        stored.oauth1 as never,
-        stored.oauth2 as never,
-      );
-      // Probe session
-      await client.getUserProfile();
-      memoryClient = client;
-      memoryTokens = stored;
-      return client;
-    } catch (err) {
-      console.warn("[garmin] Stored token expired or invalid, re-logging in:", err);
-      memoryClient = null;
-      memoryTokens = null;
-    }
-  }
-
-  return loginFresh();
-}
-
-let memoryDisplayName: string | null = null;
 
 export type GarminConnectResult =
   | { ok: true; displayName: string }
@@ -170,65 +160,66 @@ export async function connectGarminAccount(
 
   const tokens = exportTokens(client);
   const admin = createAdminClient();
-  const { error } = await admin.from("garmin_tokens").upsert({
-    id: 1,
-    oauth1: tokens.oauth1,
-    oauth2: tokens.oauth2,
-    user_id: userId,
-    display_name: displayName,
-    verified_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+  const now = new Date().toISOString();
+  const { error } = await admin.from("garmin_tokens").upsert(
+    {
+      oauth1: tokens.oauth1,
+      oauth2: tokens.oauth2,
+      user_id: userId,
+      display_name: displayName,
+      verified_at: now,
+      updated_at: now,
+    },
+    { onConflict: "user_id" },
+  );
   if (error) {
     console.error("[garmin] connect save failed", error);
     return { ok: false, reason: "unknown" };
   }
 
-  memoryClient = client;
-  memoryTokens = tokens;
-  memoryDisplayName = displayName;
+  sessions.set(userId, { client, displayName });
   return { ok: true, displayName };
 }
 
-async function getDisplayName(client: GarminConnect): Promise<string> {
-  if (memoryDisplayName) return memoryDisplayName;
+async function getDisplayName(userId: string, client: GarminConnect): Promise<string> {
+  const session = sessions.get(userId);
+  if (session?.displayName) return session.displayName;
   const profile = await client.getUserProfile();
   if (!profile?.displayName) throw new Error("Garmin-profilen mangler displayName");
-  memoryDisplayName = profile.displayName;
-  return memoryDisplayName;
+  if (session) session.displayName = profile.displayName;
+  return profile.displayName;
 }
 
-async function withGarmin<T>(fn: (client: GarminConnect) => Promise<T>): Promise<T> {
-  const client = await getClient();
-  try {
+async function withGarmin<T>(
+  userId: string,
+  fn: (client: GarminConnect) => Promise<T>,
+): Promise<T> {
+  const run = async (client: GarminConnect) => {
     const result = await fn(client);
     try {
-      const tokens = exportTokens(client);
-      memoryTokens = tokens;
-      await saveTokensToDb(tokens);
+      await saveTokensToDb(userId, exportTokens(client));
     } catch {
       // ignore token export failures
     }
     return result;
+  };
+
+  const client = await getClient(userId);
+  try {
+    return await run(client);
   } catch (err) {
-    if (isRateLimitError(err) || isNotFoundError(err)) {
-      throw err;
-    }
+    if (isRateLimitError(err) || isNotFoundError(err)) throw err;
     if (isMfaError(err)) {
-      console.error(
-        "[garmin] MFA required during request. Disable MFA or resolve manually.",
-        err,
-      );
+      console.error("[garmin] MFA required during request.", err);
       throw new Error(
-        "Garmin MFA er påkrevd. Skru av MFA for kontoen eller løs MFA manuelt – se serverloggen.",
+        "Garmin MFA er påkrevd. Skru av MFA for kontoen og koble til Garmin på nytt.",
       );
     }
-    // Retry once with fresh login on auth failures
-    console.warn("[garmin] Request failed, retrying with fresh login:", err);
-    memoryClient = null;
-    memoryTokens = null;
-    const fresh = await loginFresh();
-    return fn(fresh);
+    if (!isAuthError(err)) throw err;
+    // Prøv én gang til med tokens fra databasen (en annen instans kan ha fornyet dem).
+    console.warn("[garmin] Request rejected, retrying with stored tokens:", err);
+    sessions.delete(userId);
+    return run(await getClient(userId));
   }
 }
 
@@ -237,8 +228,11 @@ function avg(nums: number[]): number | null {
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
 }
 
-export async function fetchDailySnapshot(date = todayISO()): Promise<GarminSnapshot> {
-  return withGarmin(async (client) => {
+export async function fetchDailySnapshot(
+  userId: string,
+  date = todayISO(),
+): Promise<GarminSnapshot> {
+  return withGarmin(userId, async (client) => {
     const notes: string[] = [];
     const target = new Date(date + "T12:00:00");
 
@@ -366,7 +360,7 @@ export async function fetchDailySnapshot(date = todayISO()): Promise<GarminSnaps
   });
 }
 
-export async function fetchRecentActivities(days = 90): Promise<
+export async function fetchRecentActivities(userId: string, days = 90): Promise<
   Array<{
     date: string;
     startTime: string | null;
@@ -378,7 +372,7 @@ export async function fetchRecentActivities(days = 90): Promise<
     type: string;
   }>
 > {
-  return withGarmin(async (client) => {
+  return withGarmin(userId, async (client) => {
     const activities = await client.getActivities(0, 200);
     const cutoff = daysAgo(days).getTime();
     return (activities || [])
@@ -710,10 +704,11 @@ async function fetchReadinessByDate(
 
 /** Last N days, or from `fromISO` through today when doing an incremental sync. */
 export async function fetchHistoryMetrics(
+  userId: string,
   days = 60,
   fromISO?: string,
 ): Promise<DayMetrics[]> {
-  return withGarmin(async (client) => {
+  return withGarmin(userId, async (client) => {
     const end = new Date();
     const start = fromISO
       ? new Date(fromISO + "T12:00:00")
@@ -770,7 +765,7 @@ export async function fetchHistoryMetrics(
     if (dates.includes(today)) {
       try {
         // Garmin krever displayName i stien; uten den svarer endepunktet 403.
-        const displayName = await getDisplayName(client);
+        const displayName = await getDisplayName(userId, client);
         const summary = await client.get<Record<string, unknown>>(
           `https://connectapi.garmin.com/usersummary-service/usersummary/daily/${encodeURIComponent(displayName)}?calendarDate=${today}`,
         );

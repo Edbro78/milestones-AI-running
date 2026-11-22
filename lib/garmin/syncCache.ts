@@ -1,3 +1,4 @@
+import { readUserItem, writeUserItem } from "@/lib/userStorage";
 import type { DailyRecord } from "@/lib/types";
 import { todayISO } from "@/lib/time";
 
@@ -65,7 +66,7 @@ export function nextFetchFrom(
 export function loadLocalRecords(): StoredGarminSync | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = readUserItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredGarminSync;
     if (!Array.isArray(parsed.records) || !parsed.records.length) return null;
@@ -83,7 +84,7 @@ export function saveLocalRecords(
   lastSync: string | null,
 ): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(
+  writeUserItem(
     STORAGE_KEY,
     JSON.stringify({ lastSync, records }),
   );

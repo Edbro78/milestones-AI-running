@@ -21,7 +21,7 @@ export async function GET() {
   }
 
   try {
-    const snapshot = await fetchDailySnapshot(todayISO());
+    const snapshot = await fetchDailySnapshot(user!.id, todayISO());
     return NextResponse.json({ snapshot, userId: user!.id, athleteId: athlete.id });
   } catch (err) {
     console.error("[api/garmin/daily-snapshot]", err);

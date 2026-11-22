@@ -14,5 +14,5 @@ export default async function DashboardPage() {
   const status = await getConnectionStatus(user.id);
   if (!status.complete) redirect("/onboarding");
 
-  return <AppShell userEmail={user.email ?? "Edvard"} />;
+  return <AppShell userEmail={user.email ?? ""} userId={user.id} />;
 }
