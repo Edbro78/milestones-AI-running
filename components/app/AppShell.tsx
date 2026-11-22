@@ -62,7 +62,7 @@ export type GarminStatus = {
 };
 
 export function AppShell({ userEmail }: { userEmail: string }) {
-  const [tab, setTab] = useState<TabKey>("uke");
+  const [tab, setTab] = useState<TabKey>("profil");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sheet, setSheet] = useState<{ title: string; node: ReactNode } | null>(
     null,
