@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { CATEGORIES, METRIC_META, METRIC_ORDER } from "@/lib/categories";
-import { coachReply, suggestSession } from "@/lib/coach";
+import { coachReply, suggestSessionForLight } from "@/lib/coach";
 import {
   daysUntil,
   formatDate,
@@ -20,8 +20,10 @@ import {
   rollingWeeklyKm,
 } from "@/lib/prognosis";
 import {
+  lightForRecord,
   reportTrafficLight,
   SIGNAL_META,
+  type SignalLight,
 } from "@/lib/reportLight";
 import type { Profile, Goal } from "@/lib/mockData";
 import {
@@ -43,6 +45,7 @@ import {
   type WeekdayKey,
 } from "@/lib/weekPlan";
 import { ageFromBirthDate } from "@/lib/profileStorage";
+import { loadStoredGoal, saveStoredGoal } from "@/lib/goalStorage";
 import { CATEGORY_ORDER } from "@/lib/trafficLight";
 import type { DailyRecord, MetricKey } from "@/lib/types";
 import type { MilestoneLog } from "@/lib/milestones";
@@ -72,28 +75,17 @@ export function ProfileScreen({
   garmin,
   onSync,
   sheet,
+  showSync = true,
 }: {
   profile: Profile;
   onSaveProfile: (profile: Profile) => void;
   garmin: GarminStatus;
   onSync: () => Promise<void>;
   sheet: SheetApi;
+  /** Vis Garmin-status og synk-knapp (synk ligger på Start). */
+  showSync?: boolean;
 }) {
   const age = ageFromBirthDate(profile.birthDate);
-
-  const statusLabel = garmin.loading
-    ? "Synkroniserer…"
-    : garmin.connected
-      ? "Garmin tilkoblet"
-      : garmin.mock
-        ? "Demodata (ikke live)"
-        : "Ikke tilkoblet";
-
-  const statusColor = garmin.connected
-    ? "var(--success-500)"
-    : garmin.mock
-      ? "var(--warning-500)"
-      : "var(--error-500)";
 
   const userRows: { label: string; value: string }[] = [
     { label: "Alder", value: age ? `${age} år` : "—" },
@@ -175,6 +167,36 @@ export function ProfileScreen({
       <Card style={{ padding: "0.65rem 0.85rem" }}>
         <SectionTitle>Fra Garmin</SectionTitle>
         <ProfileFieldRows rows={garminRows} />
+        {showSync ? <GarminSyncControls garmin={garmin} onSync={onSync} /> : null}
+      </Card>
+    </div>
+  );
+}
+
+/** Garmin-status, siste synk og synk-knapp. Brukes på Start. */
+export function GarminSyncControls({
+  garmin,
+  onSync,
+}: {
+  garmin: GarminStatus;
+  onSync: () => Promise<void>;
+}) {
+  const statusLabel = garmin.loading
+    ? "Synkroniserer…"
+    : garmin.connected
+      ? "Garmin tilkoblet"
+      : garmin.mock
+        ? "Demodata (ikke live)"
+        : "Ikke tilkoblet";
+
+  const statusColor = garmin.connected
+    ? "var(--success-500)"
+    : garmin.mock
+      ? "var(--warning-500)"
+      : "var(--error-500)";
+
+  return (
+    <>
         <div
           className="flex items-center justify-between gap-2"
           style={{
@@ -242,8 +264,7 @@ export function ProfileScreen({
               ? "Synkroniser"
               : "Koble til / synkroniser"}
         </button>
-      </Card>
-    </div>
+    </>
   );
 }
 
@@ -480,146 +501,137 @@ function RunsTable({ week }: { week: DailyRecord[] }) {
   );
 }
 
+function avgOf(values: (number | null | undefined)[]): number | null {
+  const nums = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (!nums.length) return null;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function sumOf(values: (number | null | undefined)[]): number | null {
+  const nums = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (!nums.length) return null;
+  return nums.reduce((a, b) => a + b, 0);
+}
+
+const LIGHT_ORDER: SignalLight[] = ["green", "yellow", "red"];
+
+/** Trafikklys per dag siste 7 dager, samme vurdering som på Start. */
+function WeekLightStrip({ records }: { records: DailyRecord[] }) {
+  const start = Math.max(0, records.length - 7);
+  const days = records.slice(start).map((r, i) => ({
+    record: r,
+    light: lightForRecord(records, start + i),
+  }));
+  const counts = LIGHT_ORDER.map((l) => ({
+    light: l,
+    n: days.filter((d) => d.light === l).length,
+  }));
+  const todayIso = days.at(-1)?.record.date;
+
+  return (
+    <div>
+      <div className="flex gap-1.5">
+        {days.map(({ record, light }) => {
+          const meta = SIGNAL_META[light];
+          const km = recordDistanceKm(record);
+          const isToday = record.date === todayIso;
+          return (
+            <div
+              key={record.date}
+              className="flex flex-1 flex-col items-center"
+              aria-label={`${formatDate(record.date)}: ${meta.label}, ${formatNumber(km, 1)} km`}
+              style={{
+                gap: 4,
+                padding: "0.4rem 0 0.35rem",
+                borderRadius: "var(--radius-md)",
+                background: meta.bg,
+                border: `1px solid ${isToday ? meta.dot : meta.border}`,
+              }}
+            >
+              <span style={{ fontSize: "0.6rem", fontWeight: 600, color: meta.text, textTransform: "capitalize" }}>
+                {formatShortDay(record.date).split(" ")[0].replace(".", "")}
+              </span>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  background: meta.dot,
+                  boxShadow: `0 0 0 3px ${meta.bg}, 0 0 0 4px ${meta.border}`,
+                }}
+              />
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--sp-navy)" }}>
+                {km > 0 ? formatNumber(km, 1) : "–"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div
+        className="flex flex-wrap items-center gap-x-3 gap-y-1"
+        style={{ marginTop: "0.5rem", fontSize: "0.7rem", color: "var(--gray-600)" }}
+      >
+        {counts.map(({ light, n }) => (
+          <span key={light} className="inline-flex items-center gap-1">
+            <span
+              aria-hidden="true"
+              style={{ width: 8, height: 8, borderRadius: "50%", background: SIGNAL_META[light].dot }}
+            />
+            {n} {SIGNAL_META[light].label.toLowerCase()}
+          </span>
+        ))}
+        <span style={{ color: "var(--gray-400)" }}>· km under hver dag</span>
+      </div>
+    </div>
+  );
+}
+
 export function ReportScreen({
   records,
   weeklyKm,
-  lastSync,
-  sheet,
   onOpenHistory,
-  hrMax = null,
 }: {
   records: DailyRecord[];
   goal?: Goal | null;
   weeklyKm?: number;
   lastSync?: string | null;
-  sheet: SheetApi;
+  sheet?: SheetApi;
   onOpenHistory?: () => void;
   hrMax?: number | null;
 }) {
-  const [weekHover, setWeekHover] = useState<DailyRecord | null>(null);
   const week = records.slice(-7);
   const weekKm = week.reduce((s, r) => s + recordDistanceKm(r), 0);
-  const latest = records[records.length - 1];
-  const light = reportTrafficLight(records);
-  const meta = SIGNAL_META[light.light];
-  const rows: { label: string; value: string }[] = latest
-    ? [
-        { label: "Body battery", value: dash(latest.metrics.body_battery) },
-        { label: "HRV", value: dash(latest.hrvMs, 0, " ms") },
-        { label: "Søvnskår", value: dash(latest.metrics.sleep_score) },
-        { label: "Km løpt", value: dash(recordDistanceKm(latest), 1, " km") },
-        { label: "Restitusjon", value: dash(latest.recoveryScore) },
-        { label: "Etasjer", value: dash(latest.floors, 0) },
-        { label: "Skritt", value: dash(latest.metrics.steps) },
-      ]
-    : [];
+  const runs = week.flatMap((r) => r.runs ?? []);
+  const elevation = sumOf(runs.map((r) => r.elevationGainM));
+  const steps = sumOf(week.map((r) => r.metrics.steps));
+  const first = week[0]?.date;
+  const last = week.at(-1)?.date;
+
+  const stats: { label: string; value: string }[] = [
+    { label: "Snitt body battery", value: dash(avgOf(week.map((r) => r.metrics.body_battery))) },
+    { label: "Snitt HRV", value: dash(avgOf(week.map((r) => r.hrvMs)), 0, " ms") },
+    { label: "Snitt søvnskår", value: dash(avgOf(week.map((r) => r.metrics.sleep_score))) },
+    { label: "Snitt restitusjon", value: dash(avgOf(week.map((r) => r.recoveryScore))) },
+    { label: "Skritt totalt", value: dash(steps) },
+    { label: "Skritt per dag", value: dash(steps != null && week.length ? steps / week.length : null) },
+    { label: "Etasjer totalt", value: dash(sumOf(week.map((r) => r.floors))) },
+    { label: "Høydemeter løp", value: dash(elevation, 0, " m") },
+  ];
 
   return (
-    <div className="flex h-full flex-col gap-2.5">
-      <Card
-        style={{
-          padding: "0.8rem 0.85rem",
-          background: meta.bg,
-          borderColor: meta.border,
-        }}
-      >
-        <div className="flex items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: meta.dot,
-              flex: "none",
-            }}
-          />
-          <div className="min-w-0">
-            <p
-              style={{
-                fontSize: "0.62rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                fontWeight: 600,
-                color: meta.text,
-                margin: 0,
-              }}
-            >
-              Trafikklys · {records.length} dager
-            </p>
-            <p
-              style={{
-                margin: "0.15rem 0 0",
-                fontWeight: 700,
-                fontSize: "1.15rem",
-                color: meta.text,
-              }}
-            >
-              {light.headline}
-            </p>
+    <div className="flex h-full flex-col gap-2.5" style={{ overflowY: "auto" }}>
+      <Card style={{ padding: "0.7rem 0.8rem", flex: "none" }}>
+        <div className="flex items-baseline justify-between gap-2" style={{ marginBottom: "0.55rem" }}>
+          <div>
+            <SectionTitle>Trafikklys siste 7 dager</SectionTitle>
+            {first && last ? (
+              <p style={{ margin: "-0.2rem 0 0", fontSize: "0.7rem", color: "var(--gray-500)" }}>
+                {formatDate(first)} – {formatDate(last)}
+              </p>
+            ) : null}
           </div>
-        </div>
-        <p
-          style={{
-            margin: "0.45rem 0 0",
-            color: "var(--gray-700)",
-            fontSize: "0.8rem",
-            lineHeight: 1.4,
-          }}
-        >
-          {light.detail}
-        </p>
-      </Card>
-
-      <Card
-        style={{
-          padding: "0.65rem 0.85rem",
-          flex: 1,
-          minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <SectionTitle>
-          {lastSync
-            ? `Ved synk ${new Date(lastSync).toLocaleString("nb-NO", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}`
-            : "Ved siste synk"}
-        </SectionTitle>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            columnGap: "0.85rem",
-          }}
-        >
-          {rows.map((row, i) => (
-            <div
-              key={row.label}
-              className="flex items-center justify-between"
-              style={{
-                padding: "0.28rem 0",
-                borderBottom: i < rows.length - 2 ? "1px solid var(--border)" : "none",
-                gridColumn: row.label === "Skritt" ? "1 / -1" : undefined,
-              }}
-            >
-              <span style={{ color: "var(--gray-600)", fontSize: "0.8rem" }}>
-                {row.label}
-              </span>
-              <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>{row.value}</span>
-            </div>
-          ))}
-        </div>
-
-        <RunsTable week={week} />
-      </Card>
-
-      <Card style={{ padding: "0.65rem 0.75rem", position: "relative" }}>
-        <div className="flex items-baseline justify-between gap-2" style={{ marginBottom: "0.4rem" }}>
-          <SectionTitle>Siste 7 dager</SectionTitle>
-          <p style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--sp-navy)", margin: 0 }}>
+          <p style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--sp-navy)", margin: 0, whiteSpace: "nowrap" }}>
             {formatNumber(weekKm, 1)} km
             {weeklyKm ? (
               <span style={{ fontWeight: 500, color: "var(--gray-500)", fontSize: "0.72rem" }}>
@@ -629,129 +641,238 @@ export function ReportScreen({
             ) : null}
           </p>
         </div>
-        <div
-          className="flex gap-1"
-          onMouseLeave={() => setWeekHover(null)}
-        >
-          {week.map((r) => {
-            const km = recordDistanceKm(r);
-            const c = CATEGORIES[r.category];
-            return (
-              <div
-                key={r.date}
-                className="flex flex-1 flex-col items-center gap-1"
-                style={{ cursor: "default", position: "relative" }}
-                onMouseEnter={() => setWeekHover(r)}
-                onFocus={() => setWeekHover(r)}
-                onBlur={() => setWeekHover(null)}
-                tabIndex={0}
-                aria-label={`${formatDate(r.date)} · ${c.label} · ${formatNumber(km, 1)} km`}
-              >
-                <span style={{ fontSize: "0.58rem", color: "var(--gray-400)" }}>
-                  {formatShortDay(r.date).split(" ")[0].replace(".", "")}
-                </span>
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: "50%",
-                    background: c.dot,
-                    boxShadow: weekHover?.date === r.date ? `0 0 0 3px ${c.border}` : undefined,
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "0.66rem",
-                    fontWeight: 600,
-                    color: "var(--sp-navy)",
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {km > 0 ? formatNumber(km, 1) : "–"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        {weekHover ? (
-          <div
-            role="tooltip"
-            style={{
-              position: "absolute",
-              left: 8,
-              right: 8,
-              bottom: "calc(100% - 4px)",
-              zIndex: 20,
-              background: "var(--white)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-md)",
-              boxShadow: "var(--shadow-sm)",
-              padding: "0.55rem 0.55rem 0.45rem",
-              maxHeight: 280,
-              overflowY: "auto",
-              pointerEvents: "none",
-            }}
-          >
-            <CategoryScaleLegend
-              active={weekHover.category}
-              heading={`${formatDate(weekHover.date)} · ${CATEGORIES[weekHover.category].label} · skår ${weekHover.score}`}
-            />
-          </div>
-        ) : null}
+        <WeekLightStrip records={records} />
       </Card>
 
-      <div className="mt-auto flex flex-col gap-2">
-        {latest ? (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() =>
-                sheet.openSheet("Øktforslag", <SessionSheet today={latest} hrMax={hrMax} />)
-              }
+      <Card style={{ padding: "0.65rem 0.85rem", flex: "none" }}>
+        <SectionTitle>Snitt og summer</SectionTitle>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "0.85rem" }}>
+          {stats.map((row, i) => (
+            <div
+              key={row.label}
+              className="flex items-center justify-between gap-2"
+              style={{
+                padding: "0.3rem 0",
+                borderBottom: i < stats.length - 2 ? "1px solid var(--border)" : "none",
+              }}
             >
-              Foreslå økt
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() =>
-                sheet.openSheet("Spør coachen", <ChatSheet today={latest} hrMax={hrMax} />)
-              }
-            >
-              Spør coachen
-            </button>
+              <span style={{ color: "var(--gray-600)", fontSize: "0.76rem" }}>{row.label}</span>
+              <span style={{ fontWeight: 600, fontSize: "0.86rem", whiteSpace: "nowrap" }}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card style={{ padding: "0.65rem 0.85rem", flex: "none" }}>
+        <RunsTable week={week} />
+      </Card>
+
+      {onOpenHistory ? (
+        <button type="button" className="btn btn-ghost" style={{ flex: "none" }} onClick={onOpenHistory}>
+          Historikk
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/* ============================ Start ============================ */
+
+/** Fane 1: synk med Garmin og dagens trafikklys. */
+export function StartScreen({
+  records,
+  garmin,
+  onSync,
+  onOpenSession,
+}: {
+  records: DailyRecord[];
+  garmin: GarminStatus;
+  onSync: () => Promise<void>;
+  onOpenSession: () => void;
+}) {
+  const light = reportTrafficLight(records);
+  const meta = SIGNAL_META[light.light];
+  const latest = records.at(-1);
+  const rows: { label: string; value: string }[] = latest
+    ? [
+        { label: "Body battery", value: dash(latest.metrics.body_battery) },
+        { label: "HRV", value: dash(latest.hrvMs, 0, " ms") },
+        { label: "Søvnskår", value: dash(latest.metrics.sleep_score) },
+        { label: "Restitusjon", value: dash(latest.recoveryScore) },
+        { label: "Skritt", value: dash(latest.metrics.steps) },
+        { label: "Km løpt", value: dash(recordDistanceKm(latest), 1, " km") },
+      ]
+    : [];
+
+  return (
+    <div className="flex h-full flex-col gap-2.5" style={{ overflowY: "auto" }}>
+      <div
+        className="panel"
+        style={{
+          flex: "none",
+          background: meta.bg,
+          border: `1px solid ${meta.border}`,
+          borderRadius: "var(--radius-lg)",
+          padding: "1rem",
+        }}
+      >
+        <p
+          style={{
+            fontSize: "0.62rem",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            fontWeight: 700,
+            color: meta.text,
+            margin: 0,
+          }}
+        >
+          Dagens trafikklys
+          {latest ? ` · ${formatDate(latest.date)}` : ""}
+        </p>
+        <div className="flex items-center gap-3" style={{ marginTop: "0.6rem" }}>
+          <div
+            aria-hidden="true"
+            className="flex flex-col items-center"
+            style={{
+              gap: 5,
+              padding: "6px 5px",
+              borderRadius: 999,
+              background: "var(--sp-navy)",
+              flex: "none",
+            }}
+          >
+            {LIGHT_ORDER.slice()
+              .reverse()
+              .map((l) => (
+                <span
+                  key={l}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    background: SIGNAL_META[l].dot,
+                    opacity: l === light.light ? 1 : 0.18,
+                    boxShadow: l === light.light ? `0 0 10px ${SIGNAL_META[l].dot}` : undefined,
+                  }}
+                />
+              ))}
           </div>
-        ) : null}
-        {onOpenHistory ? (
-          <button type="button" className="btn btn-ghost" onClick={onOpenHistory}>
-            Historikk
+          <div className="min-w-0">
+            <p style={{ margin: 0, fontWeight: 800, fontSize: "1.45rem", color: meta.text, lineHeight: 1.1 }}>
+              {meta.label}
+            </p>
+            <p style={{ margin: "0.15rem 0 0", fontWeight: 600, fontSize: "0.95rem", color: meta.text }}>
+              {light.headline}
+            </p>
+          </div>
+        </div>
+        <p style={{ margin: "0.6rem 0 0", color: "var(--gray-700)", fontSize: "0.84rem", lineHeight: 1.4 }}>
+          {light.detail}
+        </p>
+        {latest ? (
+          <button type="button" className="btn btn-primary mt-3 w-full" onClick={onOpenSession}>
+            Se dagens økt
           </button>
         ) : null}
       </div>
+
+      {rows.length ? (
+        <Card style={{ padding: "0.65rem 0.85rem", flex: "none" }}>
+          <SectionTitle>Dagens tall</SectionTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "0.85rem" }}>
+            {rows.map((row, i) => (
+              <div
+                key={row.label}
+                className="flex items-center justify-between"
+                style={{
+                  padding: "0.28rem 0",
+                  borderBottom: i < rows.length - 2 ? "1px solid var(--border)" : "none",
+                }}
+              >
+                <span style={{ color: "var(--gray-600)", fontSize: "0.8rem" }}>{row.label}</span>
+                <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
+      <Card style={{ padding: "0.65rem 0.85rem", flex: "none" }}>
+        <SectionTitle>Garmin</SectionTitle>
+        {!records.length ? (
+          <p style={{ margin: "0 0 0.3rem", fontSize: "0.82rem", color: "var(--gray-500)" }}>
+            Ingen Garmin-data ennå. Synkroniser for å få dagens trafikklys.
+          </p>
+        ) : null}
+        <GarminSyncControls garmin={garmin} onSync={onSync} />
+      </Card>
+    </div>
+  );
+}
+
+/* ============================ Dagens økt ============================ */
+
+/** Fane 3: forslag til dagens økt, styrt av trafikklyset på Start. */
+export function SessionScreen({
+  records,
+  sheet,
+  hrMax = null,
+}: {
+  records: DailyRecord[];
+  sheet: SheetApi;
+  hrMax?: number | null;
+}) {
+  const today = records.at(-1);
+  if (!today) return null;
+  const light = reportTrafficLight(records).light;
+  const meta = SIGNAL_META[light];
+
+  return (
+    <div className="flex h-full flex-col gap-2.5" style={{ overflowY: "auto" }}>
+      <div
+        className="flex items-center gap-2.5"
+        style={{
+          flex: "none",
+          background: meta.bg,
+          border: `1px solid ${meta.border}`,
+          borderRadius: "var(--radius-md)",
+          padding: "0.6rem 0.75rem",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{ width: 14, height: 14, borderRadius: "50%", background: meta.dot, flex: "none" }}
+        />
+        <p style={{ margin: 0, fontSize: "0.8rem", color: meta.text, lineHeight: 1.35 }}>
+          <strong>Trafikklys {meta.label.toLowerCase()}.</strong>{" "}
+          {light === "green"
+            ? "Kroppen er klar – dagens økt er ambisiøs og fremoverlent."
+            : light === "yellow"
+              ? "Kroppen er ikke helt på topp – dagens økt er forsiktig."
+              : "Kroppen trenger hvile – dagens økt er svært forsiktig."}
+        </p>
+      </div>
+
+      <Card style={{ padding: "0.8rem 0.85rem", flex: "none" }}>
+        <SessionDetails today={today} light={light} hrMax={hrMax} />
+      </Card>
+
+      <button
+        type="button"
+        className="btn btn-ghost"
+        style={{ flex: "none" }}
+        onClick={() => sheet.openSheet("Spør coachen", <ChatSheet today={today} hrMax={hrMax} />)}
+      >
+        Spør coachen
+      </button>
     </div>
   );
 }
 
 /* ============================ Mål ============================ */
 
-const GOAL_STORAGE_KEY = "milestones_marathon_goal_v1";
 const MARATHON_MIN_S = 2 * 3600;
 const MARATHON_MAX_S = 6 * 3600 + 30 * 60;
-
-function loadStoredGoal(fallback: Goal | null): Goal | null {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(GOAL_STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Goal;
-    if (!parsed?.eventDate || !parsed.targetTimeS) return fallback;
-    return { ...parsed, isMain: true };
-  } catch {
-    return fallback;
-  }
-}
 
 export function GoalsScreen({
   goals: initialGoals,
@@ -759,12 +880,15 @@ export function GoalsScreen({
   sheet,
   logs = [],
   hrMax = null,
+  onGoalChange,
 }: {
   goals: Goal[];
   records: DailyRecord[];
   sheet: SheetApi;
   logs?: MilestoneLog[];
   hrMax?: number | null;
+  /** Varsler resten av appen (trender, milepæler) når målet endres. */
+  onGoalChange?: (goal: Goal) => void;
 }) {
   const initial = initialGoals.find((g) => g.isMain) ?? initialGoals[0] ?? null;
   const [goal, setGoal] = useState<Goal | null>(initial);
@@ -787,11 +911,8 @@ export function GoalsScreen({
       isMain: true,
     };
     setGoal(next);
-    try {
-      window.localStorage.setItem(GOAL_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
+    saveStoredGoal(next);
+    onGoalChange?.(next);
     sheet.closeSheet();
   }
 
@@ -1267,16 +1388,18 @@ function WeekDayForm({
   );
 }
 
-function SessionSheet({
+function SessionDetails({
   today,
+  light,
   hrMax = null,
 }: {
   today: DailyRecord;
+  light: SignalLight;
   hrMax?: number | null;
 }) {
-  const c = CATEGORIES[today.category];
   const planned = plannedForToday(loadWeekPlan());
-  const session = suggestSession(today, planned, hrMax);
+  const { category, suggestion: session } = suggestSessionForLight(today, light, planned, hrMax);
+  const c = CATEGORIES[category];
   const parts: [string, string][] = [
     ["Oppvarming", session.warmup],
     ["Hoveddel", session.main],

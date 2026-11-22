@@ -105,6 +105,7 @@ export async function syncGarminRecords(
       distanceKm: a.distanceKm,
       durationSec: a.durationSec,
       avgHr: a.avgHr,
+      elevationGainM: a.elevationGainM,
     });
     runsByDate.set(a.date, list);
   }

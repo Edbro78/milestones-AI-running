@@ -86,6 +86,8 @@ export type RunSummary = {
   distanceKm: number;
   durationSec: number;
   avgHr: number | null;
+  /** Høydemeter stigning (m). Mangler i turer hentet før feltet fantes. */
+  elevationGainM?: number | null;
 };
 
 /* ---- Typer brukt av eksisterende Garmin-klient (garmin-connect) ---- */

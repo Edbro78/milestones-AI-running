@@ -20,31 +20,30 @@ import {
 import { BottomSheet } from "@/components/app/ui";
 import { MilestonesScreen } from "@/components/app/MilestonesScreen";
 import {
-  GoalsScreen,
   HistoryScreen,
-  ProfileScreen,
   ReportScreen,
-  WeekScreen,
-  TrendsScreen,
+  SessionScreen,
+  StartScreen,
 } from "@/components/app/screens";
+import { PlanScreen } from "@/components/app/PlanScreen";
+import { loadStoredGoal } from "@/lib/goalStorage";
+import type { Goal } from "@/lib/mockData";
 
-type TabKey = "profil" | "rapport" | "mal" | "uke" | "trender" | "milestones";
+type TabKey = "start" | "rapport" | "okt" | "plan" | "milestones";
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: "profil", label: "Profil", icon: "bx-user" },
+  { key: "start", label: "Start", icon: "bx-home-alt" },
   { key: "rapport", label: "Rapport", icon: "bx-file" },
-  { key: "mal", label: "Mål", icon: "bx-flag" },
-  { key: "uke", label: "Uke", icon: "bx-calendar" },
-  { key: "trender", label: "Trender", icon: "bx-line-chart" },
+  { key: "okt", label: "Dagens økt", icon: "bx-run" },
+  { key: "plan", label: "Mål og profil", icon: "bx-user" },
   { key: "milestones", label: "Milestones", icon: "bx-trophy" },
 ];
 
 const TITLES: Record<TabKey, string> = {
-  profil: "Profil",
-  rapport: "Ukesrapport",
-  mal: "Mål",
-  uke: "Ukeplan",
-  trender: "Trender",
+  start: "I dag",
+  rapport: "Siste 7 dager",
+  okt: "Dagens økt",
+  plan: "Mål og profil",
   milestones: "Milestones",
 };
 
@@ -62,7 +61,7 @@ export type GarminStatus = {
 };
 
 export function AppShell({ userEmail }: { userEmail: string }) {
-  const [tab, setTab] = useState<TabKey>("profil");
+  const [tab, setTab] = useState<TabKey>("start");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sheet, setSheet] = useState<{ title: string; node: ReactNode } | null>(
     null,
@@ -76,6 +75,14 @@ export function AppShell({ userEmail }: { userEmail: string }) {
   // Å lese den i useState-initialisereren ga hydreringsfeil.
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [milestoneLogs, setMilestoneLogs] = useState<MilestoneLog[]>([]);
+  const defaultGoal = MOCK_GOALS.find((g) => g.isMain) ?? null;
+  const [goal, setGoal] = useState<Goal | null>(defaultGoal);
+
+  useEffect(() => {
+    // Lagret maratonmål ligger i localStorage; leses etter mount (unngår hydreringsfeil).
+    setGoal(loadStoredGoal(defaultGoal));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [garmin, setGarmin] = useState<GarminStatus>({
     connected: false,
     mock: false,
@@ -317,64 +324,52 @@ export function AppShell({ userEmail }: { userEmail: string }) {
             )
           ) : (
             <>
-              {tab === "profil" && (
-                <ProfileScreen
-                  profile={profile}
-                  onSaveProfile={handleSaveProfile}
+              {tab === "start" && (
+                <StartScreen
+                  records={records}
                   garmin={garmin}
                   onSync={syncGarmin}
-                  sheet={sheetApi}
+                  onOpenSession={() => goTo("okt")}
                 />
               )}
               {tab === "rapport" &&
                 (records.length ? (
                   <ReportScreen
                     records={records}
-                    goal={MOCK_GOALS.find((g) => g.isMain) ?? null}
                     weeklyKm={profile.weeklyKm}
-                    lastSync={garmin.lastSync}
-                    sheet={sheetApi}
                     onOpenHistory={() => setHistoryOpen(true)}
-                    hrMax={profile.hrMax}
                   />
                 ) : (
                   <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
                 ))}
-              {tab === "mal" && (
-                <GoalsScreen
+              {tab === "okt" &&
+                (records.length ? (
+                  <SessionScreen records={records} sheet={sheetApi} hrMax={profile.hrMax} />
+                ) : (
+                  <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
+                ))}
+              {tab === "plan" && (
+                <PlanScreen
                   goals={MOCK_GOALS}
+                  goal={goal}
+                  onGoalChange={setGoal}
                   records={records}
-                  sheet={sheetApi}
-                  logs={milestoneLogs}
-                  hrMax={profile.hrMax}
-                />
-              )}
-              {tab === "uke" && (
-                <WeekScreen
-                  sheet={sheetApi}
                   profile={profile}
                   onSaveProfile={handleSaveProfile}
+                  garmin={garmin}
+                  onSync={syncGarmin}
+                  sheet={sheetApi}
+                  logs={milestoneLogs}
                 />
               )}
-              {tab === "trender" &&
-                (records.length ? (
-                  <TrendsScreen
-                    records={records}
-                    goal={MOCK_GOALS.find((g) => g.isMain) ?? null}
-                    weeklyKm={profile.weeklyKm}
-                    logs={milestoneLogs}
-                    hrMax={profile.hrMax}
-                  />
-                ) : (
-                  <EmptyGarmin garmin={garmin} onSync={syncGarmin} />
-                ))}
               {tab === "milestones" && (
                 <MilestonesScreen
                   sheet={sheetApi}
-                  goal={MOCK_GOALS.find((g) => g.isMain) ?? null}
+                  goal={goal}
                   hrMax={profile.hrMax}
                   logs={milestoneLogs}
                   onLogsChange={handleMilestoneLogs}
+                  records={records}
                 />
               )}
             </>

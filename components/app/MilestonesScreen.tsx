@@ -29,21 +29,9 @@ import {
   type MilestoneTargets,
 } from "@/lib/milestones";
 import { SIGNAL_META } from "@/lib/reportLight";
-
-const GOAL_STORAGE_KEY = "milestones_marathon_goal_v1";
-
-function loadStoredGoal(fallback: Goal | null): Goal | null {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(GOAL_STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Goal;
-    if (!parsed?.eventDate || !parsed.targetTimeS) return fallback;
-    return { ...parsed, isMain: true };
-  } catch {
-    return fallback;
-  }
-}
+import { loadStoredGoal } from "@/lib/goalStorage";
+import { RaceRequirementsCard } from "@/components/app/RaceRequirementsCard";
+import type { DailyRecord } from "@/lib/types";
 
 function parseNb(value: string): number | undefined {
   const n = Number(value.replace(",", ".").trim());
@@ -68,8 +56,10 @@ export function MilestonesScreen({
   hrMax,
   logs: logsProp,
   onLogsChange,
+  records = [],
 }: {
   sheet: SheetApi;
+  records?: DailyRecord[];
   goal?: Goal | null;
   hrMax?: number | null;
   logs?: MilestoneLog[];
@@ -112,9 +102,10 @@ export function MilestonesScreen({
   }
 
   return (
-    <div className="flex h-full flex-col gap-2.5">
-      <p style={{ color: "var(--gray-500)", fontSize: "0.78rem", lineHeight: 1.35 }}>
-        Tre kalibreringsøkter. Hver logg justerer maratonestimatet på Mål.
+    <div className="flex h-full flex-col gap-2.5" style={{ overflowY: "auto" }}>
+      <RaceRequirementsCard goal={goal} records={records} />
+      <p style={{ color: "var(--gray-500)", fontSize: "0.78rem", lineHeight: 1.35, margin: "0.3rem 0 0" }}>
+        Dine testøkter: tre kalibreringsøkter. Hver logg justerer maratonestimatet på Mål.
         {goal
           ? ` Mål ${formatPace(milestoneTargets(goal.targetTimeS, null).mpPaceS)}.`
           : " Sett et maratonmål for eksakte fartsmerker."}
@@ -132,7 +123,7 @@ export function MilestonesScreen({
             type="button"
             onClick={() => openKind(kind)}
             className="text-left"
-            style={{ flex: 1, minHeight: 0 }}
+            style={{ flex: "none" }}
           >
             <Card
               style={{

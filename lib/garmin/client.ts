@@ -374,6 +374,7 @@ export async function fetchRecentActivities(days = 90): Promise<
     distanceKm: number;
     durationSec: number;
     avgHr: number | null;
+    elevationGainM: number | null;
     type: string;
   }>
 > {
@@ -393,6 +394,7 @@ export async function fetchRecentActivities(days = 90): Promise<
           distance?: number;
           duration?: number;
           averageHR?: number;
+          elevationGain?: number;
           activityType?: { typeKey?: string };
         };
         return {
@@ -402,6 +404,8 @@ export async function fetchRecentActivities(days = 90): Promise<
           distanceKm: Math.round(((act.distance || 0) / 1000) * 100) / 100,
           durationSec: Math.round(act.duration || 0),
           avgHr: act.averageHR ?? null,
+          elevationGainM:
+            typeof act.elevationGain === "number" ? Math.round(act.elevationGain) : null,
           type: act.activityType?.typeKey || "unknown",
         };
       })

@@ -1,5 +1,6 @@
 import { CATEGORIES, METRIC_META } from "@/lib/categories";
 import { formatNumber, formatSigned } from "@/lib/format";
+import type { SignalLight } from "@/lib/reportLight";
 import type { DailyRecord } from "@/lib/types";
 import {
   DISTANCE_LABEL,
@@ -199,6 +200,29 @@ export function suggestSession(
       };
   }
   return withThresholdEmphasis(suggestion, today, threshold, hrMax);
+}
+
+/**
+ * Dagens økt styres av trafikklyset på Start (60-dagers sammenligning):
+ * grønt = ambisiøst og fremoverlent, gult og rødt = tydelig forsiktig.
+ */
+export function categoryForLight(light: SignalLight): DailyRecord["category"] {
+  if (light === "green") return "green_plus";
+  if (light === "yellow") return "yellow_caution";
+  return "red1";
+}
+
+export function suggestSessionForLight(
+  today: DailyRecord,
+  light: SignalLight,
+  planned?: PlannedSession | null,
+  hrMax?: number | null,
+): { category: DailyRecord["category"]; suggestion: SessionSuggestion } {
+  const category = categoryForLight(light);
+  return {
+    category,
+    suggestion: suggestSession({ ...today, category }, planned, hrMax),
+  };
 }
 
 function suggestByCategory(today: DailyRecord): SessionSuggestion {
