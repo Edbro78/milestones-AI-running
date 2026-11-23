@@ -2,6 +2,8 @@ import type { Category, MetricKey } from "@/lib/types";
 
 export type CategoryMeta = {
   key: Category;
+  /** Nivå 1 (best) til 7 (full hvile). */
+  level: number;
   /** Kort navn, f.eks. «Grønt pluss». */
   label: string;
   /** Dagens råd. */
@@ -21,26 +23,29 @@ export type CategoryMeta = {
 export const CATEGORIES: Record<Category, CategoryMeta> = {
   green_plus: {
     key: "green_plus",
+    level: 1,
     label: "Grønt pluss",
     advice: "Kjør planlagt økt fullt ut, og legg gjerne på et ekstra drag.",
     limit: "Full intensitet tillatt",
     bg: "#ECFDF3",
     border: "#A6F4C5",
     text: "#067647",
-    dot: "#12B76A",
+    dot: "#079455",
   },
   green: {
     key: "green",
+    level: 2,
     label: "Grønt standard",
     advice: "Gjennomfør økten som planlagt.",
     limit: "Planlagt volum og intensitet",
     bg: "#F6FEF9",
     border: "#A6F4C5",
     text: "#067647",
-    dot: "#32D583",
+    dot: "#47CD89",
   },
   yellow: {
     key: "yellow",
+    level: 3,
     label: "Gult standard",
     advice:
       "Gjennomfør, men unngå full utmattelse på siste drag. Ingen ekstra omganger.",
@@ -48,20 +53,22 @@ export const CATEGORIES: Record<Category, CategoryMeta> = {
     bg: "#FFFAEB",
     border: "#FEC84B",
     text: "#93370D",
-    dot: "#F79009",
+    dot: "#EAAA08",
   },
   yellow_caution: {
     key: "yellow_caution",
+    level: 4,
     label: "Gult forsiktig",
     advice: "Dropp intervallene. Rolig tur i sone 1–2, 30–50 min.",
     limit: "Ingen høyintensiv støtbelastning",
     bg: "#FFFCF5",
     border: "#FEC84B",
     text: "#B54708",
-    dot: "#DC6803",
+    dot: "#F79009",
   },
   red1: {
     key: "red1",
+    level: 5,
     label: "Rødt 1",
     advice:
       "Lavintensiv jogg i sone 1, 20–35 min. Blodgjennomstrømning, ikke trening.",
@@ -69,10 +76,11 @@ export const CATEGORIES: Record<Category, CategoryMeta> = {
     bg: "#FFFBFA",
     border: "#FDA29B",
     text: "#B42318",
-    dot: "#F04438",
+    dot: "#F97066",
   },
   red2: {
     key: "red2",
+    level: 6,
     label: "Rødt 2",
     advice: "Ingen løping. Sykkel, svømming eller ellipse på rolig innsats.",
     limit: "Null vektbærende støt",
@@ -83,13 +91,14 @@ export const CATEGORIES: Record<Category, CategoryMeta> = {
   },
   red3: {
     key: "red3",
+    level: 7,
     label: "Rødt 3",
     advice: "Ingen trening. Væske, mat og søvn.",
     limit: "Null belastning",
     bg: "#FEF3F2",
     border: "#FDA29B",
     text: "#912018",
-    dot: "#B42318",
+    dot: "#7A271A",
   },
 };
 

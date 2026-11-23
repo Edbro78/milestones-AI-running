@@ -1,6 +1,6 @@
 import { GarminConnect } from "garmin-connect";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { extractBodyBatteryNow } from "@/lib/garmin/bodyBattery";
+import { bodyBatteryMorning, extractBodyBatteryNow } from "@/lib/garmin/bodyBattery";
 import {
   isMfaError,
   isNotFoundError,
@@ -500,12 +500,12 @@ type GarminGet = {
   get: <T>(url: string, data?: unknown) => Promise<T>;
 };
 
-async function fetchBodyBatteryByDate(
+async function fetchBodyBatteryRowsByDate(
   client: GarminGet,
   startISO: string,
   endISO: string,
-): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
+): Promise<Map<string, unknown>> {
+  const map = new Map<string, unknown>();
   for (const [from, to] of dateChunks(startISO, endISO, 28)) {
     try {
       const bb = await client.get<unknown[]>(
@@ -515,8 +515,7 @@ async function fetchBodyBatteryByDate(
       if (!Array.isArray(bb)) continue;
       for (const row of bb) {
         const date = rowDate(row);
-        const value = extractBodyBatteryNow(row);
-        if (date && value != null) map.set(date, value);
+        if (date) map.set(date, row);
       }
     } catch (err) {
       console.warn(`[garmin] body battery chunk ${from}..${to} failed`, err);
@@ -726,9 +725,9 @@ export async function fetchHistoryMetrics(
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    const [bbByDate, stepsByDate, floorsByDate, hrvByDate, sleepByDate, recByDate] =
+    const [bbRowsByDate, stepsByDate, floorsByDate, hrvByDate, sleepByDate, recByDate] =
       await Promise.all([
-        fetchBodyBatteryByDate(client, startISO, endISO),
+        fetchBodyBatteryRowsByDate(client, startISO, endISO),
         fetchStepsByDate(client, startISO, endISO),
         fetchFloorsByDate(client, startISO, endISO),
         fetchHrvByDate(client, startISO, endISO),
@@ -737,13 +736,18 @@ export async function fetchHistoryMetrics(
       ]);
 
     const kmByDate = new Map<string, number>();
+    /** Første løpestart per dag (GMT ms) og skritt tatt under løpeturene. */
+    const runStartByDate = new Map<string, number>();
+    const runStepsByDate = new Map<string, number>();
     try {
       const activities = await client.getActivities(0, 400);
       const cutoff = start.getTime();
       for (const a of activities || []) {
         const act = a as {
           startTimeLocal?: string;
+          startTimeGMT?: string;
           distance?: number;
+          steps?: number;
           activityType?: { typeKey?: string };
         };
         const startLocal = act.startTimeLocal;
@@ -755,12 +759,29 @@ export async function fetchHistoryMetrics(
         const date = startLocal.slice(0, 10);
         const km = (act.distance || 0) / 1000;
         kmByDate.set(date, Math.round(((kmByDate.get(date) || 0) + km) * 100) / 100);
+        const gmt = act.startTimeGMT ? Date.parse(act.startTimeGMT.replace(" ", "T") + "Z") : NaN;
+        if (Number.isFinite(gmt)) {
+          runStartByDate.set(date, Math.min(runStartByDate.get(date) ?? Infinity, gmt));
+        }
+        if (typeof act.steps === "number") {
+          runStepsByDate.set(date, (runStepsByDate.get(date) ?? 0) + act.steps);
+        }
       }
     } catch (err) {
       console.warn("[garmin] history activities failed", err);
     }
 
-    // Dagens tall: bruk verdien nå (user summary), ikke morgentopp / døgnstart.
+    // Trafikklyset skal vise formen FØR dagens økt, også i ettertid:
+    // body battery = nivået ved starten av dagen (morgentoppen før økten),
+    // skritt = dagens skritt minus skrittene under løpeturene.
+    const bbByDate = new Map<string, number>();
+    for (const [date, row] of bbRowsByDate) {
+      const value = bodyBatteryMorning(row, date, runStartByDate.get(date) ?? null);
+      if (value != null) bbByDate.set(date, value);
+    }
+
+    // Dagens tall. Dagens kurve fra rapporten er ofte ufullstendig, så body battery
+    // ved starten av dagen tas fra Garmins «høyeste i dag».
     const today = formatDate(end);
     if (dates.includes(today)) {
       try {
@@ -769,8 +790,9 @@ export async function fetchHistoryMetrics(
         const summary = await client.get<Record<string, unknown>>(
           `https://connectapi.garmin.com/usersummary-service/usersummary/daily/${encodeURIComponent(displayName)}?calendarDate=${today}`,
         );
-        const liveBb = extractBodyBatteryNow(summary);
-        if (liveBb != null) bbByDate.set(today, liveBb);
+        const highest = asNumber(summary.bodyBatteryHighestValue);
+        const liveBb = highest ?? extractBodyBatteryNow(summary);
+        if (liveBb != null) bbByDate.set(today, Math.max(liveBb, bbByDate.get(today) ?? 0));
         const liveSteps = asNumber(summary.totalSteps);
         if (liveSteps != null) stepsByDate.set(today, liveSteps);
         const liveFloors = asNumber(
@@ -782,6 +804,12 @@ export async function fetchHistoryMetrics(
       } catch (err) {
         console.warn("[garmin] current-day summary failed", err);
       }
+    }
+    // Hele dagens skritt (til rapporten) før løpeskrittene trekkes fra.
+    const stepsTotalByDate = new Map(stepsByDate);
+    for (const [date, runSteps] of runStepsByDate) {
+      const total = stepsByDate.get(date);
+      if (total != null) stepsByDate.set(date, Math.max(0, total - runSteps));
     }
 
     const fallbackDates = dates.slice(-10);
@@ -836,6 +864,7 @@ export async function fetchHistoryMetrics(
       const recovery = recByDate.get(date) ?? null;
       const distance_km = kmByDate.get(date) ?? 0;
       const steps = stepsByDate.get(date) ?? null;
+      const steps_total = stepsTotalByDate.get(date) ?? null;
       const floors = floorsByDate.get(date) ?? null;
       return {
         date,
@@ -844,6 +873,7 @@ export async function fetchHistoryMetrics(
         hrv,
         distance_km,
         steps,
+        steps_total,
         floors,
         recovery,
         trafikklys: provisionalTrafficLight({

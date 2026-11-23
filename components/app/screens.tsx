@@ -1,8 +1,18 @@
 "use client";
 
+import { dayStatus } from "@/lib/dayStatus";
+import {
+  bodyBatteryTone,
+  hrvTone,
+  recoveryTone,
+  sleepTone,
+  stepsTone,
+  TONE_COLOR,
+  type Tone,
+} from "@/lib/metricTone";
 import { useEffect, useState, type CSSProperties } from "react";
 import { CATEGORIES, METRIC_META, METRIC_ORDER } from "@/lib/categories";
-import { coachReply, suggestSessionForLight } from "@/lib/coach";
+import { coachReply, suggestSession } from "@/lib/coach";
 import {
   daysUntil,
   formatDate,
@@ -19,12 +29,7 @@ import {
   marathonFormTrend,
   rollingWeeklyKm,
 } from "@/lib/prognosis";
-import {
-  lightForRecord,
-  reportTrafficLight,
-  SIGNAL_META,
-  type SignalLight,
-} from "@/lib/reportLight";
+
 import type { Profile, Goal } from "@/lib/mockData";
 import {
   DISTANCE_DEFAULT_KM,
@@ -55,6 +60,7 @@ import {
   Card,
   CategoryDot,
   CategoryScaleLegend,
+  LevelScale,
   MiniStat,
   SectionTitle,
   Sparkline,
@@ -501,6 +507,22 @@ function RunsTable({ week }: { week: DailyRecord[] }) {
   );
 }
 
+/** Garmin-verdier uten plassholdere (eldre cache faller tilbake til metrics). */
+function bbOf(r: DailyRecord): number | null {
+  return r.bodyBattery !== undefined ? r.bodyBattery : r.metrics.body_battery;
+}
+function sleepOf(r: DailyRecord): number | null {
+  return r.sleepScore !== undefined ? r.sleepScore : r.metrics.sleep_score;
+}
+/** Hele dagens skritt (rapport). */
+function stepsTotalOf(r: DailyRecord): number | null {
+  return r.stepsTotal !== undefined ? r.stepsTotal : r.metrics.steps;
+}
+/** Skritt før dagens løpetur (trafikklys). */
+function stepsBeforeRunOf(r: DailyRecord): number | null {
+  return r.stepsBeforeRun !== undefined ? r.stepsBeforeRun : r.metrics.steps;
+}
+
 function avgOf(values: (number | null | undefined)[]): number | null {
   const nums = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
   if (!nums.length) return null;
@@ -513,54 +535,36 @@ function sumOf(values: (number | null | undefined)[]): number | null {
   return nums.reduce((a, b) => a + b, 0);
 }
 
-const LIGHT_ORDER: SignalLight[] = ["green", "yellow", "red"];
-
-/** Trafikklys per dag siste 7 dager, samme vurdering som på Start. */
-function WeekLightStrip({ records }: { records: DailyRecord[] }) {
-  const start = Math.max(0, records.length - 7);
-  const days = records.slice(start).map((r, i) => ({
-    record: r,
-    light: lightForRecord(records, start + i),
-  }));
-  const counts = LIGHT_ORDER.map((l) => ({
-    light: l,
-    n: days.filter((d) => d.light === l).length,
-  }));
-  const todayIso = days.at(-1)?.record.date;
+/** Nivå per dag siste 7 dager: tall 1–7 og egen farge per nivå. */
+function WeekLevelStrip({ records }: { records: DailyRecord[] }) {
+  const days = records.slice(-7);
+  const todayIso = days.at(-1)?.date;
 
   return (
     <div>
       <div className="flex gap-1.5">
-        {days.map(({ record, light }) => {
-          const meta = SIGNAL_META[light];
+        {days.map((record) => {
+          const c = CATEGORIES[record.category];
           const km = recordDistanceKm(record);
           const isToday = record.date === todayIso;
           return (
             <div
               key={record.date}
               className="flex flex-1 flex-col items-center"
-              aria-label={`${formatDate(record.date)}: ${meta.label}, ${formatNumber(km, 1)} km`}
+              aria-label={`${formatDate(record.date)}: nivå ${c.level}, ${c.label}, ${formatNumber(km, 1)} km`}
+              title={`${c.level} · ${c.label}`}
               style={{
                 gap: 4,
                 padding: "0.4rem 0 0.35rem",
                 borderRadius: "var(--radius-md)",
-                background: meta.bg,
-                border: `1px solid ${isToday ? meta.dot : meta.border}`,
+                background: c.bg,
+                border: `1px solid ${isToday ? c.dot : c.border}`,
               }}
             >
-              <span style={{ fontSize: "0.6rem", fontWeight: 600, color: meta.text, textTransform: "capitalize" }}>
+              <span style={{ fontSize: "0.6rem", fontWeight: 600, color: c.text, textTransform: "capitalize" }}>
                 {formatShortDay(record.date).split(" ")[0].replace(".", "")}
               </span>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: "50%",
-                  background: meta.dot,
-                  boxShadow: `0 0 0 3px ${meta.bg}, 0 0 0 4px ${meta.border}`,
-                }}
-              />
+              <CategoryDot category={record.category} size={22} />
               <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--sp-navy)" }}>
                 {km > 0 ? formatNumber(km, 1) : "–"}
               </span>
@@ -569,19 +573,15 @@ function WeekLightStrip({ records }: { records: DailyRecord[] }) {
         })}
       </div>
       <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-1"
-        style={{ marginTop: "0.5rem", fontSize: "0.7rem", color: "var(--gray-600)" }}
+        className="flex flex-wrap items-center gap-x-2.5 gap-y-1"
+        style={{ marginTop: "0.55rem", fontSize: "0.64rem", color: "var(--gray-600)" }}
       >
-        {counts.map(({ light, n }) => (
-          <span key={light} className="inline-flex items-center gap-1">
-            <span
-              aria-hidden="true"
-              style={{ width: 8, height: 8, borderRadius: "50%", background: SIGNAL_META[light].dot }}
-            />
-            {n} {SIGNAL_META[light].label.toLowerCase()}
+        {CATEGORY_ORDER.map((k) => (
+          <span key={k} className="inline-flex items-center gap-1">
+            <CategoryDot category={k} size={8} />
+            {CATEGORIES[k].level} {CATEGORIES[k].label}
           </span>
         ))}
-        <span style={{ color: "var(--gray-400)" }}>· km under hver dag</span>
       </div>
     </div>
   );
@@ -604,19 +604,25 @@ export function ReportScreen({
   const weekKm = week.reduce((s, r) => s + recordDistanceKm(r), 0);
   const runs = week.flatMap((r) => r.runs ?? []);
   const elevation = sumOf(runs.map((r) => r.elevationGainM));
-  const steps = sumOf(week.map((r) => r.metrics.steps));
+  const stepDays = week.map(stepsTotalOf).filter((v): v is number => v != null);
+  const steps = sumOf(stepDays);
   const first = week[0]?.date;
   const last = week.at(-1)?.date;
 
-  const stats: { label: string; value: string }[] = [
-    { label: "Snitt body battery", value: dash(avgOf(week.map((r) => r.metrics.body_battery))) },
-    { label: "Snitt HRV", value: dash(avgOf(week.map((r) => r.hrvMs)), 0, " ms") },
-    { label: "Snitt søvnskår", value: dash(avgOf(week.map((r) => r.metrics.sleep_score))) },
-    { label: "Snitt restitusjon", value: dash(avgOf(week.map((r) => r.recoveryScore))) },
-    { label: "Skritt totalt", value: dash(steps) },
-    { label: "Skritt per dag", value: dash(steps != null && week.length ? steps / week.length : null) },
-    { label: "Etasjer totalt", value: dash(sumOf(week.map((r) => r.floors))) },
-    { label: "Høydemeter løp", value: dash(elevation, 0, " m") },
+  const avgBb = avgOf(week.map(bbOf));
+  const avgSleep = avgOf(week.map(sleepOf));
+  const avgRec = avgOf(week.map((r) => r.recoveryScore));
+  const avgHrvZ = avgOf(week.filter((r) => r.hrvMs != null).map((r) => r.metrics.hrv_z));
+  const stepsPerDay = steps != null && stepDays.length ? steps / stepDays.length : null;
+  const stats: { label: string; value: string; tone: Tone | null }[] = [
+    { label: "Snitt body battery", value: dash(avgBb), tone: bodyBatteryTone(avgBb) },
+    { label: "Snitt HRV", value: dash(avgOf(week.map((r) => r.hrvMs)), 0, " ms"), tone: hrvTone(avgHrvZ) },
+    { label: "Snitt søvnskår", value: dash(avgSleep), tone: sleepTone(avgSleep) },
+    { label: "Snitt restitusjon", value: dash(avgRec), tone: recoveryTone(avgRec) },
+    { label: "Skritt totalt", value: dash(steps), tone: stepsTone(stepsPerDay) },
+    { label: "Skritt per dag", value: dash(stepsPerDay), tone: stepsTone(stepsPerDay) },
+    { label: "Etasjer totalt", value: dash(sumOf(week.map((r) => r.floors))), tone: null },
+    { label: "Høydemeter løp", value: dash(elevation, 0, " m"), tone: null },
   ];
 
   return (
@@ -641,26 +647,42 @@ export function ReportScreen({
             ) : null}
           </p>
         </div>
-        <WeekLightStrip records={records} />
+        <WeekLevelStrip records={records} />
       </Card>
 
       <Card style={{ padding: "0.65rem 0.85rem", flex: "none" }}>
         <SectionTitle>Snitt og summer</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "0.85rem" }}>
-          {stats.map((row, i) => (
-            <div
-              key={row.label}
-              className="flex items-center justify-between gap-2"
-              style={{
-                padding: "0.3rem 0",
-                borderBottom: i < stats.length - 2 ? "1px solid var(--border)" : "none",
-              }}
-            >
-              <span style={{ color: "var(--gray-600)", fontSize: "0.76rem" }}>{row.label}</span>
-              <span style={{ fontWeight: 600, fontSize: "0.86rem", whiteSpace: "nowrap" }}>{row.value}</span>
-            </div>
-          ))}
+          {stats.map((row, i) => {
+            const tone = row.tone ? TONE_COLOR[row.tone] : null;
+            return (
+              <div
+                key={row.label}
+                className="flex items-center justify-between gap-2"
+                aria-label={`${row.label}: ${row.value}${tone ? ` (${tone.label})` : ""}`}
+                style={{
+                  padding: "0.3rem 0",
+                  borderBottom: i < stats.length - 2 ? "1px solid var(--border)" : "none",
+                }}
+              >
+                <span className="inline-flex items-center gap-1.5" style={{ color: "var(--gray-600)", fontSize: "0.76rem" }}>
+                  <span
+                    aria-hidden="true"
+                    style={{ width: 8, height: 8, borderRadius: "50%", background: tone?.dot ?? "var(--gray-300)", flex: "none" }}
+                  />
+                  {row.label}
+                </span>
+                <span style={{ fontWeight: 700, fontSize: "0.86rem", whiteSpace: "nowrap", color: tone?.text }}>
+                  {row.value}
+                </span>
+              </div>
+            );
+          })}
         </div>
+        <p style={{ margin: "0.4rem 0 0", fontSize: "0.64rem", color: "var(--gray-400)" }}>
+          Body battery, HRV, søvn og restitusjon: ved starten av dagen. Skritt, etasjer og
+          høydemeter: hele dagen. Dager uten Garmin-data har fått snittet av de 7 foregående dagene.
+        </p>
       </Card>
 
       <Card style={{ padding: "0.65rem 0.85rem", flex: "none" }}>
@@ -678,7 +700,7 @@ export function ReportScreen({
 
 /* ============================ Start ============================ */
 
-/** Fane 1: synk med Garmin og dagens trafikklys. */
+/** Fane 1: synk med Garmin og dagens trafikklys (nivå 1–7). */
 export function StartScreen({
   records,
   garmin,
@@ -690,110 +712,160 @@ export function StartScreen({
   onSync: () => Promise<void>;
   onOpenSession: () => void;
 }) {
-  const light = reportTrafficLight(records);
-  const meta = SIGNAL_META[light.light];
   const latest = records.at(-1);
-  const rows: { label: string; value: string }[] = latest
+  const status = latest ? dayStatus(latest) : null;
+  const c = status ? CATEGORIES[status.category] : null;
+  const pre = status ? CATEGORIES[status.preWorkoutCategory] : null;
+  const est = new Set(latest?.estimated ?? []);
+  const rows: { label: string; value: string; tone: Tone | null; estimated?: boolean }[] = latest
     ? [
-        { label: "Body battery", value: dash(latest.metrics.body_battery) },
-        { label: "HRV", value: dash(latest.hrvMs, 0, " ms") },
-        { label: "Søvnskår", value: dash(latest.metrics.sleep_score) },
-        { label: "Restitusjon", value: dash(latest.recoveryScore) },
-        { label: "Skritt", value: dash(latest.metrics.steps) },
-        { label: "Km løpt", value: dash(recordDistanceKm(latest), 1, " km") },
+        {
+          label: "Body battery",
+          value: dash(bbOf(latest)),
+          tone: bodyBatteryTone(bbOf(latest)),
+          estimated: est.has("bodyBattery"),
+        },
+        {
+          label: "HRV",
+          value: dash(latest.hrvMs, 0, " ms"),
+          tone: latest.hrvMs != null ? hrvTone(latest.metrics.hrv_z) : null,
+        },
+        {
+          label: "Søvnskår",
+          value: dash(sleepOf(latest)),
+          tone: sleepTone(sleepOf(latest)),
+          estimated: est.has("sleepScore"),
+        },
+        {
+          label: "Restitusjon",
+          value: dash(latest.recoveryScore),
+          tone: recoveryTone(latest.recoveryScore),
+        },
+        {
+          label: "Skritt",
+          value: dash(stepsTotalOf(latest)),
+          // Fargen vurderer skritt før dagens løpetur.
+          tone: stepsTone(stepsBeforeRunOf(latest)),
+        },
+        { label: "Km løpt", value: dash(recordDistanceKm(latest), 1, " km"), tone: null },
       ]
     : [];
 
   return (
     <div className="flex h-full flex-col gap-2.5" style={{ overflowY: "auto" }}>
-      <div
-        className="panel"
-        style={{
-          flex: "none",
-          background: meta.bg,
-          border: `1px solid ${meta.border}`,
-          borderRadius: "var(--radius-lg)",
-          padding: "1rem",
-        }}
-      >
-        <p
+      {latest && status && c && pre ? (
+        <div
+          className="panel"
           style={{
-            fontSize: "0.62rem",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            fontWeight: 700,
-            color: meta.text,
-            margin: 0,
+            flex: "none",
+            background: c.bg,
+            border: `1px solid ${c.border}`,
+            borderRadius: "var(--radius-lg)",
+            padding: "1rem",
           }}
         >
-          Dagens trafikklys
-          {latest ? ` · ${formatDate(latest.date)}` : ""}
-        </p>
-        <div className="flex items-center gap-3" style={{ marginTop: "0.6rem" }}>
-          <div
-            aria-hidden="true"
-            className="flex flex-col items-center"
+          <p
             style={{
-              gap: 5,
-              padding: "6px 5px",
-              borderRadius: 999,
-              background: "var(--sp-navy)",
-              flex: "none",
+              fontSize: "0.62rem",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              fontWeight: 700,
+              color: c.text,
+              margin: 0,
             }}
           >
-            {LIGHT_ORDER.slice()
-              .reverse()
-              .map((l) => (
-                <span
-                  key={l}
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    background: SIGNAL_META[l].dot,
-                    opacity: l === light.light ? 1 : 0.18,
-                    boxShadow: l === light.light ? `0 0 10px ${SIGNAL_META[l].dot}` : undefined,
-                  }}
-                />
+            Dagens trafikklys · {formatDate(latest.date)}
+          </p>
+          <div className="flex items-center gap-3" style={{ marginTop: "0.6rem" }}>
+            <CategoryDot category={status.category} size={58} />
+            <div className="min-w-0">
+              <p style={{ margin: 0, fontWeight: 800, fontSize: "1.45rem", color: c.text, lineHeight: 1.1 }}>
+                {c.label}
+              </p>
+              <p style={{ margin: "0.15rem 0 0", fontWeight: 600, fontSize: "0.88rem", color: c.text }}>
+                {status.workoutDone
+                  ? "Økt gjennomført · restitusjon"
+                  : `Nivå ${c.level} av 7 · ${c.limit}`}
+              </p>
+            </div>
+          </div>
+          <div style={{ marginTop: "0.75rem" }}>
+            <LevelScale active={status.category} />
+            <div
+              className="flex justify-between"
+              style={{ marginTop: 3, fontSize: "0.6rem", color: "var(--gray-500)" }}
+            >
+              <span>1 = klar for alt</span>
+              <span>7 = full hvile</span>
+            </div>
+          </div>
+          <p style={{ margin: "0.6rem 0 0", color: "var(--gray-700)", fontSize: "0.84rem", lineHeight: 1.4 }}>
+            {status.workoutDone
+              ? `Dagens økt er gjennomført (${formatNumber(status.km, 1)} km). Ingen mer trening i dag – spis, drikk og sov godt. Nytt trafikklys i morgen tidlig.`
+              : c.advice}
+          </p>
+          {status.workoutDone ? (
+            <p style={{ margin: "0.35rem 0 0", color: "var(--gray-500)", fontSize: "0.74rem" }}>
+              Før økten: nivå {pre.level} · {pre.label} (skår {latest.score} av 100).
+            </p>
+          ) : latest.triggers.length ? (
+            <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1rem", color: c.text, fontSize: "0.78rem", lineHeight: 1.35 }}>
+              {latest.triggers.map((t, i) => (
+                <li key={i}>{t.reason}</li>
               ))}
-          </div>
-          <div className="min-w-0">
-            <p style={{ margin: 0, fontWeight: 800, fontSize: "1.45rem", color: meta.text, lineHeight: 1.1 }}>
-              {meta.label}
+            </ul>
+          ) : (
+            <p style={{ margin: "0.35rem 0 0", color: "var(--gray-500)", fontSize: "0.74rem" }}>
+              Samlet skår {latest.score} av 100. Ingen sperrer utløst.
             </p>
-            <p style={{ margin: "0.15rem 0 0", fontWeight: 600, fontSize: "0.95rem", color: meta.text }}>
-              {light.headline}
-            </p>
-          </div>
-        </div>
-        <p style={{ margin: "0.6rem 0 0", color: "var(--gray-700)", fontSize: "0.84rem", lineHeight: 1.4 }}>
-          {light.detail}
-        </p>
-        {latest ? (
+          )}
           <button type="button" className="btn btn-primary mt-3 w-full" onClick={onOpenSession}>
             Se dagens økt
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {rows.length ? (
         <Card style={{ padding: "0.65rem 0.85rem", flex: "none" }}>
           <SectionTitle>Dagens tall</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "0.85rem" }}>
-            {rows.map((row, i) => (
-              <div
-                key={row.label}
-                className="flex items-center justify-between"
-                style={{
-                  padding: "0.28rem 0",
-                  borderBottom: i < rows.length - 2 ? "1px solid var(--border)" : "none",
-                }}
-              >
-                <span style={{ color: "var(--gray-600)", fontSize: "0.8rem" }}>{row.label}</span>
-                <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>{row.value}</span>
-              </div>
-            ))}
+            {rows.map((row, i) => {
+              const tone = row.tone ? TONE_COLOR[row.tone] : null;
+              return (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between"
+                  aria-label={`${row.label}: ${row.value}${tone ? ` (${tone.label})` : ""}`}
+                  style={{
+                    padding: "0.28rem 0",
+                    borderBottom: i < rows.length - 2 ? "1px solid var(--border)" : "none",
+                  }}
+                >
+                  <span className="inline-flex items-center gap-1.5" style={{ color: "var(--gray-600)", fontSize: "0.8rem" }}>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: tone?.dot ?? "var(--gray-300)",
+                        flex: "none",
+                      }}
+                    />
+                    {row.label}
+                  </span>
+                  <span style={{ fontWeight: 700, fontSize: "0.88rem", color: tone?.text }}>
+                    {row.estimated ? "≈ " : ""}
+                    {row.value}
+                  </span>
+                </div>
+              );
+            })}
           </div>
+          <p style={{ margin: "0.4rem 0 0", fontSize: "0.64rem", color: "var(--gray-400)" }}>
+            Grønn = taler for trening · gul = vær obs · rød = taler for mindre trening
+            {est.size ? " · ≈ = mangler fra Garmin, snitt siste 7 dager" : ""}
+          </p>
         </Card>
       ) : null}
 
@@ -812,7 +884,7 @@ export function StartScreen({
 
 /* ============================ Dagens økt ============================ */
 
-/** Fane 3: forslag til dagens økt, styrt av trafikklyset på Start. */
+/** Fane 3: forslag til dagens økt, styrt av dagens nivå (1–7) på Start. */
 export function SessionScreen({
   records,
   sheet,
@@ -824,8 +896,8 @@ export function SessionScreen({
 }) {
   const today = records.at(-1);
   if (!today) return null;
-  const light = reportTrafficLight(records).light;
-  const meta = SIGNAL_META[light];
+  const status = dayStatus(today);
+  const c = CATEGORIES[status.category];
 
   return (
     <div className="flex h-full flex-col gap-2.5" style={{ overflowY: "auto" }}>
@@ -833,28 +905,55 @@ export function SessionScreen({
         className="flex items-center gap-2.5"
         style={{
           flex: "none",
-          background: meta.bg,
-          border: `1px solid ${meta.border}`,
+          background: c.bg,
+          border: `1px solid ${c.border}`,
           borderRadius: "var(--radius-md)",
           padding: "0.6rem 0.75rem",
         }}
       >
-        <span
-          aria-hidden="true"
-          style={{ width: 14, height: 14, borderRadius: "50%", background: meta.dot, flex: "none" }}
-        />
-        <p style={{ margin: 0, fontSize: "0.8rem", color: meta.text, lineHeight: 1.35 }}>
-          <strong>Trafikklys {meta.label.toLowerCase()}.</strong>{" "}
-          {light === "green"
+        <CategoryDot category={status.category} size={26} />
+        <p style={{ margin: 0, fontSize: "0.8rem", color: c.text, lineHeight: 1.35 }}>
+          <strong>
+            Nivå {c.level} · {c.label}.
+          </strong>{" "}
+          {status.workoutDone
+            ? "Dagens økt er gjennomført – nå er det restitusjon til i morgen."
+            : c.level <= 2
             ? "Kroppen er klar – dagens økt er ambisiøs og fremoverlent."
-            : light === "yellow"
+            : c.level <= 4
               ? "Kroppen er ikke helt på topp – dagens økt er forsiktig."
-              : "Kroppen trenger hvile – dagens økt er svært forsiktig."}
+              : "Kroppen trenger restitusjon – dagens økt er svært forsiktig eller hvile."}
         </p>
       </div>
 
       <Card style={{ padding: "0.8rem 0.85rem", flex: "none" }}>
-        <SessionDetails today={today} light={light} hrMax={hrMax} />
+        {status.workoutDone ? (
+          <div className="flex flex-col gap-2">
+            <SectionTitle>Gjennomført i dag</SectionTitle>
+            {status.runs.length ? (
+              status.runs.map((run, i) => (
+                <p key={i} style={{ margin: 0, fontSize: "0.9rem", color: "var(--sp-navy)", fontWeight: 600 }}>
+                  {formatNumber(run.distanceKm, 1)} km
+                  {run.durationSec ? ` · ${formatDuration(run.durationSec)}` : ""}
+                  {run.durationSec && run.distanceKm > 0
+                    ? ` · ${formatPace(run.durationSec / run.distanceKm)}`
+                    : ""}
+                  {run.avgHr ? ` · puls ${Math.round(run.avgHr)}` : ""}
+                </p>
+              ))
+            ) : (
+              <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--sp-navy)", fontWeight: 600 }}>
+                {formatNumber(status.km, 1)} km
+              </p>
+            )}
+            <p style={{ margin: "0.3rem 0 0", fontSize: "0.86rem", color: "var(--gray-700)", lineHeight: 1.4 }}>
+              Ingen ny økt i dag. Fyll på med karbohydrater og protein, drikk godt og prioriter søvn.
+              Morgendagens trafikklys bestemmer neste økt.
+            </p>
+          </div>
+        ) : (
+          <SessionDetails today={today} hrMax={hrMax} />
+        )}
       </Card>
 
       <button
@@ -1390,16 +1489,14 @@ function WeekDayForm({
 
 function SessionDetails({
   today,
-  light,
   hrMax = null,
 }: {
   today: DailyRecord;
-  light: SignalLight;
   hrMax?: number | null;
 }) {
   const planned = plannedForToday(loadWeekPlan());
-  const { category, suggestion: session } = suggestSessionForLight(today, light, planned, hrMax);
-  const c = CATEGORIES[category];
+  const session = suggestSession(today, planned, hrMax);
+  const c = CATEGORIES[today.category];
   const parts: [string, string][] = [
     ["Oppvarming", session.warmup],
     ["Hoveddel", session.main],

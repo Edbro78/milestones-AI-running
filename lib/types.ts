@@ -74,6 +74,16 @@ export type DailyRecord = {
   recoveryScore?: number | null;
   /** Etasjer gått opp. */
   floors?: number | null;
+  /** Body Battery ved starten av dagen fra Garmin. null = mangler (ingen plassholder). */
+  bodyBattery?: number | null;
+  /** Søvnskår fra Garmin. null = mangler. */
+  sleepScore?: number | null;
+  /** Hele dagens skritt fra Garmin. null = mangler. */
+  stepsTotal?: number | null;
+  /** Skritt før dagens løpeturer. null = mangler. */
+  stepsBeforeRun?: number | null;
+  /** Felter som manglet hos Garmin og er fylt med snittet av de 7 foregående dagene. */
+  estimated?: string[];
   /** Løpeturer denne dagen fra Garmin. `undefined` = ikke hentet (eldre cache). */
   runs?: RunSummary[];
 };
@@ -122,7 +132,10 @@ export interface DayMetrics {
   sleep_score: number | null;
   hrv: number | null;
   distance_km: number;
+  /** Skritt før dagens løpeturer (til trafikklyset). */
   steps: number | null;
+  /** Hele dagens skritt. */
+  steps_total?: number | null;
   floors: number | null;
   recovery: number | null;
   trafikklys: Trafikklys;

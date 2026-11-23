@@ -2,7 +2,8 @@ import { readUserItem, writeUserItem } from "@/lib/userStorage";
 import type { DailyRecord } from "@/lib/types";
 import { todayISO } from "@/lib/time";
 
-const STORAGE_KEY = "milestones_garmin_records_v1";
+// v2: trafikklys per dag bygger på verdier før dagens økt – hent historikken på nytt.
+const STORAGE_KEY = "milestones_garmin_records_v5";
 const KEEP_DAYS = 60;
 
 export type StoredGarminSync = {

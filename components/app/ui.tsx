@@ -12,18 +12,56 @@ export function CategoryDot({
   category: Category;
   size?: number;
 }) {
+  const showLevel = size >= 14;
   return (
     <span
       aria-hidden="true"
+      className="inline-flex items-center justify-center"
       style={{
-        display: "inline-block",
         width: size,
         height: size,
         borderRadius: "50%",
         background: CATEGORIES[category].dot,
         flex: "none",
+        color: "#fff",
+        fontWeight: 800,
+        fontSize: Math.round(size * 0.55),
+        lineHeight: 1,
       }}
-    />
+    >
+      {showLevel ? CATEGORIES[category].level : null}
+    </span>
+  );
+}
+
+/** Skala 1–7 med dagens nivå uthevet. */
+export function LevelScale({ active }: { active: Category }) {
+  const keys = Object.keys(CATEGORIES) as Category[];
+  return (
+    <div className="flex gap-1" role="img" aria-label={`Nivå ${CATEGORIES[active].level} av 7: ${CATEGORIES[active].label}`}>
+      {keys.map((k) => {
+        const on = k === active;
+        return (
+          <span
+            key={k}
+            className="flex flex-1 items-center justify-center"
+            style={{
+              height: on ? 26 : 18,
+              alignSelf: "flex-end",
+              borderRadius: 6,
+              background: CATEGORIES[k].dot,
+              opacity: on ? 1 : 0.35,
+              color: "#fff",
+              fontWeight: 800,
+              fontSize: on ? "0.8rem" : "0.62rem",
+              boxShadow: on ? "0 0 0 2px var(--white), 0 0 0 3px " + CATEGORIES[k].dot : undefined,
+            }}
+          >
+            {CATEGORIES[k].level}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 

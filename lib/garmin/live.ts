@@ -10,7 +10,8 @@ import {
 } from "@/lib/garmin/client";
 import { evaluate } from "@/lib/trafficLight";
 import type { DailyRecord, DayMetrics, Metrics, RunSummary } from "@/lib/types";
-import { daysBetween, todayISO } from "@/lib/time";
+import { todayISO } from "@/lib/time";
+import { fillFromPrevious7 } from "@/lib/fillMissing";
 
 const round = (n: number, d = 0) => {
   const f = 10 ** d;
@@ -50,23 +51,49 @@ export async function syncGarminRecords(
   days = 60,
   fromISO?: string,
 ): Promise<GarminSyncResult> {
-  // Alltid minst de siste 7 dagene, så løpetabellen «siste 7 dager» får full detalj.
-  const sevenDaysAgo = daysAgoISO(6);
-  if (fromISO && fromISO > sevenDaysAgo) fromISO = sevenDaysAgo;
-  const incremental = Boolean(fromISO);
-  const activityDays = incremental ? daysBetween(fromISO!, todayISO()) + 1 : days;
+  // Hent alltid hele vinduet: HRV-normal og belastning (ACWR) trenger full
+  // historikk, ellers får samme dag ulikt trafikklys avhengig av hvilken synk
+  // som kjørte. Garmin gir inntil 28 dager per kall, så det koster lite ekstra.
+  void fromISO;
+  const activityDays = days;
   let activitiesOk = true;
   const [freshHistory, activities, todaySnap] = await Promise.all([
-    fetchHistoryMetrics(userId, days, fromISO),
+    fetchHistoryMetrics(userId, days),
     fetchRecentActivities(userId, activityDays).catch(() => {
       activitiesOk = false;
       return [] as Awaited<ReturnType<typeof fetchRecentActivities>>;
     }),
-    incremental ? Promise.resolve(null) : fetchDailySnapshot(userId).catch(() => null),
+    // Dagens øyeblikksbilde (hvilepuls, stress) hentes ved hver synk, så dagens
+    // trafikklys blir det samme enten synken er full eller kort.
+    fetchDailySnapshot(userId).catch(() => null),
   ]);
 
-  const history = mergeHistory(memoryHistory.get(userId) ?? [], freshHistory).slice(-days);
-  memoryHistory.set(userId, history);
+  const rawHistory = mergeHistory(memoryHistory.get(userId) ?? [], freshHistory).slice(-days);
+  memoryHistory.set(userId, rawHistory);
+
+  // Dager uten Garmin-data får snittet av de 7 foregående dagene. Dagens skritt
+  // fylles ikke: «0 så langt» om morgenen er riktig.
+  const todayIdx = rawHistory.findIndex((d) => d.date === todayISO());
+  const bbFill = fillFromPrevious7(rawHistory.map((d) => d.body_battery));
+  const sleepFill = fillFromPrevious7(rawHistory.map((d) => d.sleep_score));
+  const stepsFill = fillFromPrevious7(rawHistory.map((d) => d.steps), { skipIndex: todayIdx });
+  const stepsTotalFill = fillFromPrevious7(
+    rawHistory.map((d) => d.steps_total ?? null),
+    { skipIndex: todayIdx },
+  );
+  const history: DayMetrics[] = rawHistory.map((d, i) => ({
+    ...d,
+    body_battery: bbFill.values[i],
+    sleep_score: sleepFill.values[i],
+    // I dag uten skritt fra Garmin ennå = 0 skritt så langt.
+    steps: i === todayIdx ? (stepsFill.values[i] ?? 0) : stepsFill.values[i],
+    steps_total: i === todayIdx ? (stepsTotalFill.values[i] ?? 0) : stepsTotalFill.values[i],
+  }));
+  const estimatedFor = (i: number): string[] => [
+    ...(bbFill.estimated[i] ? ["bodyBattery"] : []),
+    ...(sleepFill.estimated[i] ? ["sleepScore"] : []),
+    ...(stepsTotalFill.estimated[i] || stepsFill.estimated[i] ? ["steps"] : []),
+  ];
 
   // Bygg RHR-serie: bruk dagens snapshot der vi har den; ellers ukjent.
   // Historikk-endepunktet leverer ikke RHR per dag i dagens klient.
@@ -168,6 +195,11 @@ export async function syncGarminRecords(
       hrvMs: day.hrv,
       recoveryScore,
       floors: day.floors,
+      bodyBattery: day.body_battery,
+      sleepScore: day.sleep_score,
+      stepsTotal: day.steps_total ?? null,
+      stepsBeforeRun: day.steps,
+      estimated: estimatedFor(i),
       runs: runsFor(day.date),
     };
   });
