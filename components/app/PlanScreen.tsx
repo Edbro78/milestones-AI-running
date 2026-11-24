@@ -33,7 +33,6 @@ function Section({ title, height, children }: { title: string; height: number; c
 
 /** Fane 4: mål, profil, ukeplan og trender samlet. */
 export function PlanScreen({
-  goals,
   goal,
   onGoalChange,
   records,
@@ -44,7 +43,6 @@ export function PlanScreen({
   sheet,
   logs,
 }: {
-  goals: Goal[];
   goal: Goal | null;
   onGoalChange: (goal: Goal) => void;
   records: DailyRecord[];
@@ -59,7 +57,7 @@ export function PlanScreen({
     <div className="flex h-full flex-col gap-4" style={{ overflowY: "auto", paddingBottom: "0.5rem" }}>
       <Section title="Mål" height={470}>
         <GoalsScreen
-          goals={goals}
+          goal={goal}
           records={records}
           sheet={sheet}
           logs={logs}

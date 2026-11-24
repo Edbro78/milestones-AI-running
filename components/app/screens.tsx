@@ -50,7 +50,6 @@ import {
   type WeekdayKey,
 } from "@/lib/weekPlan";
 import { ageFromBirthDate } from "@/lib/profileStorage";
-import { loadStoredGoal, saveStoredGoal } from "@/lib/goalStorage";
 import { CATEGORY_ORDER } from "@/lib/trafficLight";
 import type { DailyRecord, MetricKey } from "@/lib/types";
 import type { MilestoneLog } from "@/lib/milestones";
@@ -974,27 +973,22 @@ const MARATHON_MIN_S = 2 * 3600;
 const MARATHON_MAX_S = 6 * 3600 + 30 * 60;
 
 export function GoalsScreen({
-  goals: initialGoals,
+  goal,
   records,
   sheet,
   logs = [],
   hrMax = null,
   onGoalChange,
 }: {
-  goals: Goal[];
+  /** Brukerens maratonmål (eies av AppShell og lagres i Supabase). */
+  goal: Goal | null;
   records: DailyRecord[];
   sheet: SheetApi;
   logs?: MilestoneLog[];
   hrMax?: number | null;
-  /** Varsler resten av appen (trender, milepæler) når målet endres. */
-  onGoalChange?: (goal: Goal) => void;
+  /** Lagrer målet og oppdaterer resten av appen (trender, milepæler). */
+  onGoalChange: (goal: Goal) => void;
 }) {
-  const initial = initialGoals.find((g) => g.isMain) ?? initialGoals[0] ?? null;
-  const [goal, setGoal] = useState<Goal | null>(initial);
-
-  useEffect(() => {
-    setGoal(loadStoredGoal(initial));
-  }, [initial]);
 
   function saveGoal(data: {
     id?: string;
@@ -1009,9 +1003,7 @@ export function GoalsScreen({
       targetTimeS: data.targetTimeS,
       isMain: true,
     };
-    setGoal(next);
-    saveStoredGoal(next);
-    onGoalChange?.(next);
+    onGoalChange(next);
     sheet.closeSheet();
   }
 
@@ -1654,10 +1646,7 @@ export function TrendsScreen({
   logs?: MilestoneLog[];
   hrMax?: number | null;
 }) {
-  const [goal, setGoal] = useState<Goal | null>(goalProp ?? null);
-  useEffect(() => {
-    setGoal(loadStoredGoal(goalProp ?? null));
-  }, [goalProp]);
+  const goal = goalProp ?? null;
 
   const window = records.slice(-28);
   const volume = rollingWeeklyKm(window, 7);

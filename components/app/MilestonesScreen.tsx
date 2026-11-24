@@ -29,7 +29,6 @@ import {
   type MilestoneTargets,
 } from "@/lib/milestones";
 import { SIGNAL_META } from "@/lib/reportLight";
-import { loadStoredGoal } from "@/lib/goalStorage";
 import { RaceRequirementsCard } from "@/components/app/RaceRequirementsCard";
 import type { DailyRecord } from "@/lib/types";
 
@@ -65,14 +64,13 @@ export function MilestonesScreen({
   logs?: MilestoneLog[];
   onLogsChange?: (logs: MilestoneLog[]) => void;
 }) {
-  const [goal, setGoal] = useState<Goal | null>(goalProp ?? null);
+  const goal = goalProp ?? null;
   const [localLogs, setLocalLogs] = useState<MilestoneLog[]>([]);
   const logs = logsProp ?? localLogs;
 
   useEffect(() => {
-    setGoal(loadStoredGoal(goalProp ?? null));
     if (logsProp === undefined) setLocalLogs(loadMilestoneLogs());
-  }, [goalProp, logsProp]);
+  }, [logsProp]);
 
   const targets = goal
     ? milestoneTargets(goal.targetTimeS, hrMax ?? null)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { MOCK_GOALS, MOCK_PROFILE, type Profile } from "@/lib/mockData";
+import { MOCK_PROFILE, type Profile } from "@/lib/mockData";
 import { loadLocalProfile, saveLocalProfile } from "@/lib/profileStorage";
 import { saveWeekPlan } from "@/lib/weekPlan";
 import { formatGarminUserError } from "@/lib/garmin/errors";
@@ -26,7 +26,19 @@ import {
   StartScreen,
 } from "@/components/app/screens";
 import { PlanScreen } from "@/components/app/PlanScreen";
-import { loadStoredGoal } from "@/lib/goalStorage";
+import { loadStoredGoal, saveStoredGoal } from "@/lib/goalStorage";
+
+async function putGoal(goal: Goal): Promise<void> {
+  try {
+    await fetch("/api/goal", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(goal),
+    });
+  } catch {
+    // lokal kopi er lagret; prøves igjen ved neste endring
+  }
+}
 import { setStorageUser } from "@/lib/userStorage";
 import type { Goal } from "@/lib/mockData";
 
@@ -78,14 +90,38 @@ export function AppShell({ userEmail, userId }: { userEmail: string; userId: str
   // Å lese den i useState-initialisereren ga hydreringsfeil.
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [milestoneLogs, setMilestoneLogs] = useState<MilestoneLog[]>([]);
-  const defaultGoal = MOCK_GOALS.find((g) => g.isMain) ?? null;
-  const [goal, setGoal] = useState<Goal | null>(defaultGoal);
+  // Maratonmålet lagres i profilen i Supabase (følger brukeren på alle enheter).
+  // Nettleserkopien gir raskt førstebilde og flyttes til serveren første gang.
+  const [goal, setGoal] = useState<Goal | null>(null);
 
   useEffect(() => {
-    // Lagret maratonmål ligger i localStorage; leses etter mount (unngår hydreringsfeil).
-    setGoal(loadStoredGoal(defaultGoal));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const local = loadStoredGoal(null);
+    if (local) setGoal(local);
+    let cancelled = false;
+    fetch("/api/goal")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { goal?: Goal | null } | null) => {
+        if (cancelled || !data) return;
+        if (data.goal) {
+          setGoal(data.goal);
+          saveStoredGoal(data.goal);
+        } else if (local) {
+          void putGoal(local);
+        }
+      })
+      .catch(() => {
+        // beholder lokal kopi
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  function handleGoalChange(next: Goal) {
+    setGoal(next);
+    saveStoredGoal(next);
+    void putGoal(next);
+  }
   const [garmin, setGarmin] = useState<GarminStatus>({
     connected: false,
     mock: false,
@@ -358,9 +394,8 @@ export function AppShell({ userEmail, userId }: { userEmail: string; userId: str
                 ))}
               {tab === "plan" && (
                 <PlanScreen
-                  goals={MOCK_GOALS}
                   goal={goal}
-                  onGoalChange={setGoal}
+                  onGoalChange={handleGoalChange}
                   records={records}
                   profile={profile}
                   onSaveProfile={handleSaveProfile}
